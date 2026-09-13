@@ -189,10 +189,32 @@ he notices nothing except that it opened.
    the *old* server and passes against the version being replaced. And a rolled
    back update ends on the version it started from, so "the version changed" can
    never detect it — the rollback note is the only evidence.
-7. **Release pipeline.** `git tag v1.0.0 && git push --tags` → GitHub Action
-   builds the artifact, attaches it and its checksum to a GitHub Release.
-   Nothing done by hand, nothing you can forget.
-8. **Repo made public.**
+7. ~~**Release pipeline.**~~ **Done.** `.github/workflows/release.yml` on a
+   `v*` tag; `check.yml` on every push and pull request. Both on macOS runners,
+   because the launcher uses `mv -fh` and `open` — BSD behaviour — and macOS is
+   the only platform this runs on.
+
+   The release job **refuses if the tag does not match `package.json`**: the
+   updater names its download from the version, so the two have to agree or the
+   release is unusable. It then runs typecheck, unit tests, build, smoke,
+   launcher and update suites, and publishes only if every one passes. Nothing
+   is built by hand, so there is nothing to forget.
+8. ~~**Repo made public.**~~ **Done**, with the history squashed to a single
+   commit first — the trim only covered the current file, and the old commits
+   still carried it.
+
+### Verified against the real thing
+
+`v1.0.0` is published: tarball, checksum and installer zip. Downloaded from the
+release, the published checksum matches the published tarball; the zip preserves
+the executable bit on `start.command`; the launcher creates the `current` symlink
+the zip deliberately omits; and `/api/update` reaches the real GitHub, finds
+v1.0.0 and correctly reports being up to date with no error.
+
+**What is still unproven:** pressing **Update now** against a real release. The
+fake-GitHub suite covers the mechanism end to end, but the real API has only
+been exercised for the *check*, not the install. Cutting a `v1.0.1` and pressing
+the button is the last dry run before any of this reaches the operator's Mac.
 
 ### Verify before he sees any of it
 
