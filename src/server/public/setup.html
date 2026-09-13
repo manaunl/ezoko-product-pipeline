@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ezoko — Setup</title>
+<style>
+  :root {
+    --ground: #FCFCFD; --surface: #F4F4F8; --line: #E0DFE8; --line-soft: #ECEBF2;
+    --ink: #191826; --ink-soft: #4C4A61; --muted: #706E86;
+    --accent: #5B4B8A; --accent-ink: #FFFFFF; --accent-soft: #EDE9F6;
+    --good: #2F6B52; --good-soft: #E5F0EA;
+    --warn: #8A5E12; --warn-soft: #F6EDDD;
+    --stop: #9E332B; --stop-soft: #F7E6E4;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131220; --surface: #1D1C2D; --line: #333049; --line-soft: #282639;
+      --ink: #EAE8F3; --ink-soft: #BDBACE; --muted: #8F8CA6;
+      --accent: #A793E0; --accent-ink: #1B1730; --accent-soft: #272139;
+      --good: #74C29C; --good-soft: #1B2C25;
+      --warn: #DBB166; --warn-soft: #2D2518;
+      --stop: #E58F86; --stop-soft: #2F1E1D;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .back { display: inline-block; margin-bottom: 26px; color: var(--accent); font-size: 14px; }
+
+  section {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 24px 26px; margin-top: 20px;
+  }
+  h2 {
+    font-size: 17px; font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .step {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    background: var(--accent-soft); padding: 3px 8px; border-radius: 5px;
+  }
+  .lede { color: var(--ink-soft); font-size: 14.5px; margin-bottom: 18px; }
+
+  ol.how { margin: 0 0 20px 20px; color: var(--ink-soft); font-size: 14.5px; }
+  ol.how li { margin-bottom: 7px; }
+  ol.how code, p code, .note code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--ground);
+    border: 1px solid var(--line-soft); border-radius: 4px; padding: 1px 5px;
+  }
+
+  .note {
+    background: var(--warn-soft); color: var(--warn); border-radius: 8px;
+    padding: 12px 16px; font-size: 14px; margin-bottom: 18px;
+  }
+
+  .fields { display: flex; flex-direction: column; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); font-family: var(--mono);
+  }
+  .field .help { font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 10px 12px; font: inherit; font-family: var(--mono); font-size: 13.5px;
+    color: var(--ink); background: var(--ground);
+    border: 1px solid var(--line); border-radius: 7px;
+  }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  button, a.button {
+    font: inherit; font-weight: 550; padding: 10px 20px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--ground); color: var(--ink);
+    cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  button:hover:not(:disabled), a.button:hover { border-color: var(--muted); }
+  button:focus-visible, a.button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 22px; }
+
+  .pill {
+    font-family: var(--mono); font-size: 11px; padding: 4px 9px; border-radius: 5px;
+  }
+  .pill.on  { background: var(--good-soft); color: var(--good); }
+  .pill.off { background: var(--stop-soft); color: var(--stop); }
+
+  .result { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .result div {
+    padding: 11px 15px; border-radius: 8px; font-size: 14px;
+    display: grid; grid-template-columns: 78px 1fr; gap: 10px; align-items: baseline;
+  }
+  .result .ok  { background: var(--good-soft); color: var(--good); }
+  .result .bad { background: var(--stop-soft); color: var(--stop); }
+  .result b { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; }
+
+  .saved { color: var(--good); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Back to uploading</a>
+
+  <header>
+    <h1>Setup</h1>
+    <p class="sub">Connect this tool to your Shopify store and your Google spreadsheet.
+      Everything you type here is saved on this computer only, in a file called <code>.env</code>.</p>
+  </header>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section>
+    <h2><span class="step">1</span> Shopify</h2>
+    <p class="lede">Shopify needs an app of its own before it will let this tool add products.</p>
+
+    <ol class="how">
+      <li>Go to <a href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> and create an app.</li>
+      <li>Set its access scopes to <code>read_products</code>, <code>write_products</code>,
+          <code>read_inventory</code>, <code>write_inventory</code>, <code>read_locations</code> —
+          then <strong>release</strong> that version. Skipping the release is the most common mistake.</li>
+      <li>On the app's <strong>Home</strong> page, choose <strong>Install app</strong> and pick your store.</li>
+      <li>Copy the <strong>Client ID</strong> and <strong>Client secret</strong> into the boxes below.</li>
+    </ol>
+
+    <div class="note">
+      The app and the store must belong to the <strong>same Shopify organization</strong>.
+      If your store isn't in the list when you try to install, it lives somewhere else and this won't work.
+    </div>
+
+    <div class="fields">
+      <div class="field">
+        <label for="SHOPIFY_STORE_DOMAIN">Store address</label>
+        <input type="text" id="SHOPIFY_STORE_DOMAIN" placeholder="your-store.myshopify.com" autocomplete="off">
+        <span class="help">The <code>.myshopify.com</code> address, found in Shopify under Settings → Domains.</span>
+      </div>
+      <div class="field">
+        <label for="SHOPIFY_CLIENT_ID">Client ID</label>
+        <input type="text" id="SHOPIFY_CLIENT_ID" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="SHOPIFY_CLIENT_SECRET">Client secret <span id="s-shopify"></span></label>
+        <input type="password" id="SHOPIFY_CLIENT_SECRET" autocomplete="off">
+        <span class="help">Begins with <code>shpss_</code>. Leave blank to keep the one already saved.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section>
+    <h2><span class="step">2</span> Google</h2>
+    <p class="lede">This lets the tool read your spreadsheet and the photo folder, and write its results back.</p>
+
+    <ol class="how">
+      <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer">console.cloud.google.com</a> and create a project.</li>
+      <li>Under <em>APIs &amp; Services → Library</em>, turn on the <strong>Google Sheets API</strong> and the <strong>Google Drive API</strong>.</li>
+      <li>Under <em>OAuth consent screen</em>, choose <strong>External</strong>, fill in the name and your email,
+          and add your own Google address as a <strong>test user</strong>.</li>
+      <li>Under <em>Credentials</em>, create an <strong>OAuth client ID</strong> of type <strong>Desktop app</strong>,
+          and copy its ID and secret below.</li>
+    </ol>
+
+    <div class="fields">
+      <div class="field">
+        <label for="GOOGLE_CLIENT_ID">Client ID</label>
+        <input type="text" id="GOOGLE_CLIENT_ID" placeholder="…apps.googleusercontent.com" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="GOOGLE_CLIENT_SECRET">Client secret <span id="s-google"></span></label>
+        <input type="password" id="GOOGLE_CLIENT_SECRET" autocomplete="off">
+        <span class="help">Leave blank to keep the one already saved.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section>
+    <h2><span class="step">3</span> Sign in to Google <span id="signin-pill"></span></h2>
+    <p class="lede">Save the details above first, then sign in. Google will warn that the app
+      isn't verified — that's expected for a private tool. Choose <strong>Advanced</strong>,
+      then <strong>Go to Ezoko</strong>.</p>
+
+    <div class="note">
+      This sign-in <strong>expires after 7 days</strong> and you'll need to do it again.
+      That's a Google rule for tools that haven't been through their review process.
+    </div>
+
+    <a class="button primary" href="/auth/google">Sign in with Google</a>
+    <div id="signin-msg" class="result"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section>
+    <h2><span class="step">4</span> Where your data lives</h2>
+    <p class="lede">Paste the web addresses straight from your browser — the tool will pick out what it needs.</p>
+
+    <div class="fields">
+      <div class="field">
+        <label for="GOOGLE_SHEET_ID">Spreadsheet link</label>
+        <input type="text" id="GOOGLE_SHEET_ID" placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="GOOGLE_SHEET_TAB">Tab name</label>
+        <input type="text" id="GOOGLE_SHEET_TAB" placeholder="Munkalap1" autocomplete="off">
+        <span class="help">The tab at the bottom of the spreadsheet, not the file name.</span>
+      </div>
+      <div class="field">
+        <label for="GOOGLE_DRIVE_FOLDER_ID">Photo folder link</label>
+        <input type="text" id="GOOGLE_DRIVE_FOLDER_ID" placeholder="https://drive.google.com/drive/folders/…" autocomplete="off">
+        <span class="help">Photos may sit in subfolders inside it — that's fine.</span>
+      </div>
+      <div class="field">
+        <label for="EZOKO_STOREFRONT_URL">Your shop, in English</label>
+        <input type="text" id="EZOKO_STOREFRONT_URL" placeholder="https://ezoko.shop/en" autocomplete="off">
+        <span class="help">Each new product copies its description from the product
+          you already sell of that stone. <strong>Include the <code>/en</code></strong> —
+          without it the tool reads the Hungarian pages and every description comes out empty.</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button id="save" class="primary">Save</button>
+    <button id="test">Test the connection</button>
+    <span id="saved" class="saved"></span>
+  </div>
+
+  <div id="results" class="result"></div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const VISIBLE = ['SHOPIFY_STORE_DOMAIN', 'SHOPIFY_CLIENT_ID', 'GOOGLE_CLIENT_ID',
+                   'GOOGLE_SHEET_ID', 'GOOGLE_SHEET_TAB', 'GOOGLE_DRIVE_FOLDER_ID',
+                   'EZOKO_STOREFRONT_URL'];
+  const SECRETS = ['SHOPIFY_CLIENT_SECRET', 'GOOGLE_CLIENT_SECRET'];
+
+  function esc(text) {
+    return String(text ?? '').replace(/[&<>"]/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  }
+
+  async function load() {
+    const config = await (await fetch('/api/setup')).json();
+
+    for (const key of VISIBLE) $(key).value = config.values[key] ?? '';
+
+    // Secrets are never sent here — only whether one is stored.
+    $('s-shopify').innerHTML = config.secretsSet.SHOPIFY_CLIENT_SECRET
+      ? '<span class="pill on">saved</span>' : '<span class="pill off">not set</span>';
+    $('s-google').innerHTML = config.secretsSet.GOOGLE_CLIENT_SECRET
+      ? '<span class="pill on">saved</span>' : '<span class="pill off">not set</span>';
+    for (const key of SECRETS) {
+      $(key).placeholder = config.secretsSet[key] ? '•••••••••  (already saved)' : '';
+    }
+
+    $('signin-pill').innerHTML = config.googleSignedIn
+      ? '<span class="pill on">signed in</span>' : '<span class="pill off">not signed in</span>';
+  }
+
+  async function save() {
+    const body = {};
+    for (const key of VISIBLE) body[key] = $(key).value;
+    for (const key of SECRETS) if ($(key).value.trim() !== '') body[key] = $(key).value;
+
+    $('save').disabled = true;
+    const response = await fetch('/api/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    $('save').disabled = false;
+
+    if (!response.ok) {
+      const failure = await response.json().catch(() => ({}));
+      $('saved').textContent = failure.error ?? 'Could not save.';
+      return;
+    }
+
+    for (const key of SECRETS) $(key).value = '';
+    $('saved').textContent = 'Saved.';
+    setTimeout(() => { $('saved').textContent = ''; }, 4000);
+    load();
+  }
+
+  async function test() {
+    $('test').disabled = true;
+    $('results').innerHTML = '<div class="ok"><b>…</b><span>Checking</span></div>';
+
+    try {
+      const outcome = await (await fetch('/api/setup/test', { method: 'POST' })).json();
+      const labels = { shopify: 'Shopify', sheet: 'Spreadsheet', drive: 'Photos',
+                       storefront: 'Descriptions' };
+      $('results').innerHTML = Object.entries(labels).map(([key, label]) => {
+        const item = outcome[key] ?? { ok: false, message: 'no answer' };
+        return `<div class="${item.ok ? 'ok' : 'bad'}"><b>${esc(label)}</b><span>${esc(item.message)}</span></div>`;
+      }).join('');
+    } catch (error) {
+      $('results').innerHTML = `<div class="bad"><b>Error</b><span>${esc(error)}</span></div>`;
+    }
+    $('test').disabled = false;
+  }
+
+  // Report back from the Google sign-in redirect.
+  const outcome = new URLSearchParams(location.search).get('google');
+  if (outcome === 'ok') {
+    $('signin-msg').innerHTML = '<div class="ok"><b>Google</b><span>Signed in.</span></div>';
+    history.replaceState(null, '', '/setup.html');
+  } else if (outcome) {
+    $('signin-msg').innerHTML = `<div class="bad"><b>Google</b><span>${esc(outcome)}</span></div>`;
+    history.replaceState(null, '', '/setup.html');
+  }
+
+  $('save').addEventListener('click', save);
+  $('test').addEventListener('click', test);
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "name": "ezoko-product-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Creates draft Shopify products from a Google Sheet and SKU-named photos in Google Drive.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/server/main.ts",
+    "dev": "tsx watch src/server/main.ts",
+    "login": "tsx src/google/login.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "node tools/build.mjs",
+    "smoke": "node tools/smoke.mjs",
+    "test:launcher": "node tools/launcher-test.mjs",
+    "test:update": "node tools/update-test.mjs"
+  },
+  "dependencies": {
+    "@googleapis/drive": "^25.0.0",
+    "@googleapis/sheets": "^17.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "google-auth-library": "^11.0.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

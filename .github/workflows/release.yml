@@ -1,0 +1,62 @@
+name: Release
+
+# Pushing a tag is the whole release procedure. Nothing is built by hand, so
+# there is nothing to forget — and the artifacts the updater downloads are the
+# same ones the tests just ran against.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # macOS on purpose. The launcher is a .command file using `mv -fh` and
+    # `open`, both of which are BSD/macOS behaviour, and the owner's Mac is the only
+    # machine this ever runs on. Building anywhere else would test something
+    # nobody uses.
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: The tag must match package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $pkg."
+            echo "The updater names its download from the version, so these have to agree."
+            exit 1
+          fi
+
+      - run: npm run typecheck
+      - run: npm test
+
+      - run: npm run build
+
+      # The gate. Every one of these starts the artifact for real; if any fails,
+      # no release is published and nobody is offered a broken update.
+      - run: npm run smoke
+      - run: npm run test:launcher
+      - run: npm run test:update
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            "build/ezoko-${version}.tgz" \
+            "build/ezoko-${version}.tgz.sha256" \
+            "build/Ezoko-${version}.zip"

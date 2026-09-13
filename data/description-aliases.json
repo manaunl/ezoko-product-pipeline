@@ -1,0 +1,7 @@
+{
+  "_comment": "Stones that borrow another stone's description, because the store has no copy of their own. Deliberate human decisions ONLY — the tool never infers an alias, because the reasoning that turns 'Tiffany Fluorite' into 'Fluorite' also turns 'Azurite' into 'Azurite Malachite' and puts the wrong mineral's chemistry on a product page. Keys are the English stone name, lowercased. Values name the stone to borrow from, spelled as its heading appears on the storefront. This does NOT affect the product title: the title still says Tiffany Fluorite. See data/stone-names.json for the separate Hungarian -> English table that titles come from.",
+  "_unconfirmed": "Both entries below are judgement calls and should be confirmed by whoever owns the shop. Tiffany Fluorite is the doubtful one: it is a trade name, and the material is widely held to be a bertrandite-bearing rock rather than a fluorite, so Fluorite's copy may describe the wrong chemistry. Delete the entry to leave those bodies empty instead.",
+
+  "tiffany fluorite": "Fluorite",
+  "vera cruz amethyst": "Amethyst"
+}

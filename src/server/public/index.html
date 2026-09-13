@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ezoko — Upload products to Shopify</title>
+<style>
+  :root {
+    --ground: #FCFCFD;
+    --surface: #F4F4F8;
+    --line: #E0DFE8;
+    --line-soft: #ECEBF2;
+    --ink: #191826;
+    --ink-soft: #4C4A61;
+    --muted: #706E86;
+    --accent: #5B4B8A;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #EDE9F6;
+    --good: #2F6B52;
+    --good-soft: #E5F0EA;
+    --warn: #8A5E12;
+    --warn-soft: #F6EDDD;
+    --stop: #9E332B;
+    --stop-soft: #F7E6E4;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131220;
+      --surface: #1D1C2D;
+      --line: #333049;
+      --line-soft: #282639;
+      --ink: #EAE8F3;
+      --ink-soft: #BDBACE;
+      --muted: #8F8CA6;
+      --accent: #A793E0;
+      --accent-ink: #1B1730;
+      --accent-soft: #272139;
+      --good: #74C29C;
+      --good-soft: #1B2C25;
+      --warn: #DBB166;
+      --warn-soft: #2D2518;
+      --stop: #E58F86;
+      --stop-soft: #2F1E1D;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 32px; }
+  h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 14px; font-family: var(--mono); }
+  .setup-link { color: var(--accent); font-size: 14px; margin-top: 4px; }
+
+  /* ---------- controls ---------- */
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); font-family: var(--mono);
+  }
+  .field input {
+    width: 110px; padding: 9px 11px; font: inherit; font-family: var(--mono);
+    color: var(--ink); background: var(--ground);
+    border: 1px solid var(--line); border-radius: 7px;
+  }
+  .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .spacer { flex: 1; }
+
+  button {
+    font: inherit; font-weight: 550; padding: 10px 20px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--ground); color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary {
+    background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+  .hint { margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+
+  /* ---------- status ---------- */
+
+  #status { margin-top: 24px; }
+  .status-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .status-title { font-size: 17px; font-weight: 600; }
+
+  .bar {
+    height: 6px; background: var(--line); border-radius: 99px;
+    overflow: hidden; margin-top: 14px;
+  }
+  .bar > i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+
+  .banner { border-radius: 10px; padding: 16px 20px; font-size: 14.5px; }
+  .banner.info { background: var(--accent-soft); color: var(--accent); }
+  .banner.good { background: var(--good-soft); color: var(--good); }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); }
+  .banner.stop { background: var(--stop-soft); color: var(--stop); }
+
+  .counts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .count {
+    font-family: var(--mono); font-size: 12px; padding: 5px 10px;
+    border-radius: 6px; background: var(--surface); border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .count b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- update banner ---------- */
+
+  #update:not(:empty) { margin-bottom: 26px; }
+  #update .banner { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  #update .what { flex: 1 1 260px; min-width: 0; }
+  #update .notes {
+    margin-top: 5px; font-size: 13.5px; opacity: 0.85;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  #update .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #update a { color: inherit; text-decoration: underline; font-size: 13.5px; }
+  #update button { font-size: 13.5px; padding: 7px 14px; }
+
+  /* ---------- results ---------- */
+
+  .group { margin-top: 28px; }
+  .group > h2 {
+    font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
+    color: var(--muted); font-family: var(--mono); margin-bottom: 10px;
+  }
+
+  .rows { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .row {
+    display: grid; grid-template-columns: 108px 130px 1fr; gap: 14px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line-soft);
+    align-items: baseline; font-size: 14px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 5px;
+    justify-self: start; white-space: nowrap;
+  }
+  .row .sku { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); }
+  .row .body { min-width: 0; }
+  .row .title { font-weight: 550; }
+  .row .detail { color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+  .row .detail.bad { color: var(--stop); }
+  .row a { color: var(--accent); font-size: 13px; }
+
+  .t-created { background: var(--good-soft); color: var(--good); }
+  .t-would   { background: var(--accent-soft); color: var(--accent); }
+  .t-partial { background: var(--warn-soft); color: var(--warn); }
+  .t-failed, .t-invalid { background: var(--stop-soft); color: var(--stop); }
+  .t-exists, .t-skipped { background: var(--surface); color: var(--muted); }
+
+  details > summary {
+    cursor: pointer; font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
+    color: var(--muted); font-family: var(--mono); margin-bottom: 10px;
+  }
+  details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (max-width: 620px) {
+    .row { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="update"></div>
+
+  <header>
+    <h1>Upload products to Shopify</h1>
+    <div class="sub" id="config">connecting…</div>
+    <a class="setup-link" href="/setup.html">Setup and connections →</a>
+  </header>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="field">
+        <label for="limit">Limit</label>
+        <input id="limit" type="number" min="1" placeholder="all" inputmode="numeric">
+      </div>
+      <div class="spacer"></div>
+      <button id="preview">Preview</button>
+      <button id="upload" class="primary">Upload to Shopify</button>
+    </div>
+    <p class="hint">
+      <strong>Preview</strong> shows what would happen and writes nothing, anywhere.
+      <strong>Upload</strong> creates the products as drafts — nothing goes on sale until you
+      publish it yourself in Shopify.
+    </p>
+  </div>
+
+  <div id="status"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const POLL_MS = 1500;
+
+  const TAG = {
+    'would-create': { text: 'would create', cls: 't-would' },
+    created:        { text: 'created',      cls: 't-created' },
+    partial:        { text: 'partial',      cls: 't-partial' },
+    exists:         { text: 'already there',cls: 't-exists' },
+    skipped:        { text: 'not ready',    cls: 't-skipped' },
+    invalid:        { text: 'needs fixing', cls: 't-invalid' },
+    failed:         { text: 'failed',       cls: 't-failed' },
+  };
+
+  const GROUPS = [
+    { key: 'failed',       title: 'Failed' },
+    { key: 'partial',      title: 'Created, but some photos did not upload' },
+    { key: 'created',      title: 'Created' },
+    { key: 'would-create', title: 'Would be created' },
+    { key: 'invalid',      title: 'Needs fixing in the spreadsheet' },
+    { key: 'exists',       title: 'Already in Shopify' },
+    { key: 'skipped',      title: 'Not ready yet', collapsed: true },
+  ];
+
+  let polling = null;
+
+  function esc(text) {
+    return String(text ?? '').replace(/[&<>"]/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  }
+
+  function renderRow(result) {
+    const tag = TAG[result.status] ?? { text: result.status, cls: '' };
+    const bad = result.status === 'failed' || result.status === 'invalid';
+    const photos = result.photos && result.status !== 'would-create'
+      ? `${result.photos.ready}/${result.photos.total} photos`
+      : (result.photos ? `${result.photos.total} photos` : '');
+
+    return `
+      <div class="row">
+        <span class="tag ${tag.cls}">${esc(tag.text)}</span>
+        <span class="sku">${esc(result.sku)}</span>
+        <div class="body">
+          ${result.title ? `<div class="title">${esc(result.title)}</div>` : ''}
+          ${result.detail ? `<div class="detail ${bad ? 'bad' : ''}">${esc(result.detail)}</div>` : ''}
+          ${(result.warnings ?? []).map((w) => `<div class="detail">! ${esc(w)}</div>`).join('')}
+          ${photos ? `<div class="detail">${esc(photos)}</div>` : ''}
+          ${result.adminUrl ? `<a href="${esc(result.adminUrl)}" target="_blank" rel="noreferrer">Open in Shopify →</a>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function renderResults(results) {
+    const box = $('results');
+    if (!results || results.length === 0) { box.innerHTML = ''; return; }
+
+    box.innerHTML = GROUPS.map((group) => {
+      const rows = results.filter((r) => r.status === group.key);
+      if (rows.length === 0) return '';
+      const heading = `${group.title} — ${rows.length}`;
+      const body = `<div class="rows">${rows.map(renderRow).join('')}</div>`;
+
+      return group.collapsed
+        ? `<details class="group"><summary>${esc(heading)}</summary>${body}</details>`
+        : `<section class="group"><h2>${esc(heading)}</h2>${body}</section>`;
+    }).join('');
+  }
+
+  function renderStatus(state) {
+    const box = $('status');
+
+    if (!state || state.status === 'idle') {
+      box.innerHTML = '';
+      return;
+    }
+
+    if (state.stale) {
+      box.innerHTML = `<div class="banner stop">
+        The last run stopped unexpectedly and did not finish. Anything already created is safe —
+        nothing is ever deleted. Run it again; products that already exist will be skipped.
+      </div>`;
+      return;
+    }
+
+    if (state.status === 'running') {
+      const pct = state.total > 0 ? Math.round((state.done / state.total) * 100) : 0;
+      const what = state.mode === 'commit' ? 'Uploading' : 'Checking the spreadsheet and photos';
+      box.innerHTML = `
+        <div class="banner info">
+          <div class="status-line"><span class="status-title">${what}…</span>
+          <span>${state.total > 0 ? `${state.done} of ${state.total}` : 'reading'}</span></div>
+          <div class="bar"><i style="width:${state.total > 0 ? pct : 12}%"></i></div>
+          <div style="margin-top:10px;font-size:13.5px">
+            You can close this tab — the run continues.
+          </div>
+        </div>`;
+      return;
+    }
+
+    if (state.status === 'failed') {
+      box.innerHTML = `<div class="banner stop">
+        <span class="status-title">The run could not start.</span>
+        <div style="margin-top:6px">${esc(state.error ?? 'Unknown error')}</div>
+      </div>`;
+      return;
+    }
+
+    const counts = {};
+    for (const result of state.results ?? []) {
+      counts[result.status] = (counts[result.status] ?? 0) + 1;
+    }
+    const chips = Object.entries(counts)
+      .map(([key, n]) => `<span class="count"><b>${n}</b> ${esc(TAG[key]?.text ?? key)}</span>`)
+      .join('');
+
+    const preview = state.mode === 'preview';
+    const trouble = (counts.failed ?? 0) + (counts.partial ?? 0) > 0;
+    const tone = trouble ? 'warn' : preview ? 'info' : 'good';
+    const headline = preview
+      ? 'Preview finished — nothing was written'
+      : trouble
+        ? 'Finished, with some problems'
+        : 'Finished';
+
+    const wb = state.report && state.report.writeBack;
+    let sheetLine = '';
+    if (wb && wb.error) {
+      sheetLine = `<div style="margin-top:8px">The spreadsheet could not be updated: ${esc(wb.error)}.
+        The products were still created.</div>`;
+    } else if (wb) {
+      const bits = [`${wb.updated} rows updated in the spreadsheet`];
+      if (wb.addedColumns.length) bits.push(`added the ${wb.addedColumns.join(', ')} column${wb.addedColumns.length > 1 ? 's' : ''}`);
+      if (wb.preserved) bits.push(`${wb.preserved} left as they were`);
+      if (wb.notFound.length) bits.push(`${wb.notFound.length} SKUs are no longer in the sheet`);
+      sheetLine = `<div style="margin-top:8px">${esc(bits.join(' · '))}</div>`;
+    }
+
+    box.innerHTML = `<div class="banner ${tone}">
+      <span class="status-title">${headline}</span>${sheetLine}
+    </div><div class="counts">${chips}</div>`;
+  }
+
+  async function poll() {
+    try {
+      const state = await (await fetch('/api/status')).json();
+      renderStatus(state);
+      renderResults(state.results);
+
+      const busy = state.status === 'running' && !state.stale;
+      $('preview').disabled = busy;
+      $('upload').disabled = busy;
+
+      if (!busy && polling) { clearInterval(polling); polling = null; }
+    } catch {
+      // Server restarting or stopped; the next tick will pick it back up.
+    }
+  }
+
+  async function start(commit) {
+    const raw = $('limit').value.trim();
+
+    if (commit) {
+      const scope = raw ? `at most ${raw} product${raw === '1' ? '' : 's'}` : 'every product that is ready';
+      if (!confirm(`Create ${scope} in Shopify?\n\nThey are created as drafts, so nothing goes on sale until you publish it yourself.`)) return;
+    }
+
+    $('preview').disabled = true;
+    $('upload').disabled = true;
+
+    const response = await fetch('/api/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commit, limit: raw === '' ? null : raw }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      alert(body.error ?? 'Could not start the run.');
+      $('preview').disabled = false;
+      $('upload').disabled = false;
+      return;
+    }
+
+    if (!polling) polling = setInterval(poll, POLL_MS);
+    poll();
+  }
+
+  $('preview').addEventListener('click', () => start(false));
+  $('upload').addEventListener('click', () => start(true));
+
+  // ---------- updates ----------
+  //
+  // Applying an update kills this server and the launcher starts the new one,
+  // so the poll below is written to expect the connection to fail and come
+  // back. A failed fetch during a restart is the normal path, not an error.
+
+  let restarting = false;
+
+  function renderUpdate(status) {
+    const box = $('update');
+
+    if (restarting) {
+      box.innerHTML = `<div class="banner info">
+        <div class="what"><span class="status-title">Restarting…</span>
+        <div class="notes">This page will come back on its own in a few seconds.</div></div>
+      </div>`;
+      return;
+    }
+
+    if (!status || !status.installRoot) { box.innerHTML = ''; return; }
+
+    if (status.progress && status.progress.state === 'working') {
+      box.innerHTML = `<div class="banner info">
+        <div class="what"><span class="status-title">${esc(status.progress.step)}</span>
+        <div class="notes">Leave this page open.</div></div>
+      </div>`;
+      return;
+    }
+
+    if (status.progress && status.progress.state === 'failed') {
+      box.innerHTML = `<div class="banner stop">
+        <div class="what"><span class="status-title">The update did not install</span>
+        <div class="notes">${esc(status.progress.error)}</div>
+        <div class="notes">Nothing changed — you are still on version ${esc(status.version)}.</div></div>
+      </div>`;
+      return;
+    }
+
+    // The launcher undid an update. Say so plainly: otherwise the version number
+    // silently goes backwards and nobody knows why.
+    if (status.rolledBack) {
+      box.innerHTML = `<div class="banner warn">
+        <div class="what"><span class="status-title">Version ${esc(status.rolledBack.failed)} would not start</span>
+        <div class="notes">It was undone automatically. You are running
+        ${esc(status.rolledBack.running)}, exactly as before. Nothing was lost —
+        send this message to whoever maintains the uploader.</div></div>
+      </div>`;
+      return;
+    }
+
+    const decision = status.decision || {};
+
+    if (decision.kind === 'available') {
+      box.innerHTML = `<div class="banner info">
+        <div class="what">
+          <span class="status-title">Version ${esc(decision.version)} is available</span>
+          ${decision.notes ? `<div class="notes">${esc(decision.notes)}</div>` : ''}
+        </div>
+        <div class="acts">
+          ${decision.releaseUrl ? `<a href="${esc(decision.releaseUrl)}" target="_blank" rel="noreferrer">What's new</a>` : ''}
+          <button id="do-update" class="primary">Update now</button>
+        </div>
+      </div>`;
+      $('do-update').addEventListener('click', applyUpdate);
+      return;
+    }
+
+    // A release exists that cannot be installed. Whoever published it needs to
+    // know, and staying quiet looks identical to being up to date.
+    if (decision.kind === 'unusable') {
+      box.innerHTML = `<div class="banner warn">
+        <div class="what"><span class="status-title">Version ${esc(decision.version)} cannot be installed</span>
+        <div class="notes">${esc(decision.reason)}</div></div>
+      </div>`;
+      return;
+    }
+
+    box.innerHTML = '';
+  }
+
+  async function applyUpdate() {
+    const button = $('do-update');
+    if (button) { button.disabled = true; button.textContent = 'Starting…'; }
+
+    const response = await fetch('/api/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    }).catch(() => null);
+
+    if (!response || !response.ok) {
+      const message = response ? (await response.json().catch(() => ({}))).error : null;
+      $('update').innerHTML = `<div class="banner stop">
+        <div class="what"><span class="status-title">Could not start the update</span>
+        <div class="notes">${esc(message || 'The uploader did not answer.')}</div></div>
+      </div>`;
+      return;
+    }
+
+    watch();
+  }
+
+  /**
+   * Follows an update through to the end.
+   *
+   * Three things can happen and all of them look like a failed fetch at some
+   * point, so they are told apart by what happens next:
+   *
+   *   - the server goes away and comes back  → it restarted, reload the page
+   *   - the server stays up and reports a failure → show it, stop watching
+   *   - the server goes away and stays away  → say what to do about it
+   */
+  async function watch() {
+    const giveUpAt = Date.now() + 240000;
+    let wentAway = false;
+
+    while (Date.now() < giveUpAt) {
+      await new Promise((r) => setTimeout(r, 1500));
+
+      const status = await fetch('/api/update').then((r) => (r.ok ? r.json() : null), () => null);
+
+      if (!status) {
+        // Down. This is the expected middle of a successful update.
+        wentAway = true;
+        restarting = true;
+        renderUpdate(null);
+        continue;
+      }
+
+      if (wentAway) { location.reload(); return; }
+
+      restarting = false;
+      renderUpdate(status);
+      if (!status.progress || status.progress.state !== 'working') return;
+    }
+
+    restarting = false;
+    $('update').innerHTML = `<div class="banner stop">
+      <div class="what"><span class="status-title">The uploader has not come back</span>
+      <div class="notes">Close this tab and double-click start.command again.
+      Your settings are stored separately and have not been touched.</div></div>
+    </div>`;
+  }
+
+  async function pollUpdate() {
+    if (restarting) return;
+    try {
+      const status = await (await fetch('/api/update')).json();
+      renderUpdate(status);
+      // An update already running — a second tab, or this one reopened — should
+      // follow it rather than show a stale step.
+      if (status.progress && status.progress.state === 'working') watch();
+    } catch {
+      // Offline. The banner simply stays as it is; nothing here is important
+      // enough to interrupt the person with.
+    }
+  }
+
+  pollUpdate();
+  setInterval(pollUpdate, 6 * 60 * 60 * 1000);
+
+  fetch('/api/config')
+    .then((r) => r.json())
+    .then((config) => {
+      $('config').textContent = `${config.store}${config.sheetTab ? ' · ' + config.sheetTab : ''}`;
+    })
+    .catch(() => { $('config').textContent = 'could not read configuration'; });
+
+  // If anything is missing, say so here rather than letting the first run fail
+  // with an error nobody can act on.
+  fetch('/api/setup')
+    .then((r) => r.json())
+    .then((setup) => {
+      const missing = [
+        ...Object.entries(setup.values).filter(([, v]) => !v).map(([k]) => k),
+        ...Object.entries(setup.secretsSet).filter(([, v]) => !v).map(([k]) => k),
+      ];
+      if (missing.length === 0 && setup.googleSignedIn) return;
+
+      const what = !setup.googleSignedIn && missing.length === 0
+        ? 'You are not signed in to Google.'
+        : 'Some settings are missing.';
+      $('status').innerHTML = `<div class="banner warn">
+        <span class="status-title">Not ready yet</span>
+        <div style="margin-top:6px">${what}
+        <a href="/setup.html" style="color:inherit;text-decoration:underline">Open setup</a> to finish.</div>
+      </div>`;
+    })
+    .catch(() => {});
+
+  poll();
+  polling = setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
