@@ -158,6 +158,36 @@ async function main() {
   console.log('\nLauncher test\n');
 
   try {
+    // --- 0. A source checkout ------------------------------------------------
+    //
+    // The repository downloaded as a ZIP has no `versions` folder, and for a
+    // while the launcher refused to start in it — which broke the only way the
+    // tool had ever been delivered. Run the real checkout, from its own root.
+    const checkout = spawn('./start.command', [], {
+      cwd: ROOT,
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        EZOKO_STATE_DIR: path.join(temp, 'checkout-state'),
+        EZOKO_NO_BROWSER: '1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    });
+    running = checkout;
+    let checkoutSaid = '';
+    checkout.stdout.on('data', (c) => (checkoutSaid += c));
+    checkout.stderr.on('data', (c) => (checkoutSaid += c));
+
+    const fromSource = await waitForVersion(40_000);
+    check('starts from a source checkout, with no `versions` folder', fromSource !== null,
+      fromSource ? `(${fromSource})` : `(${checkoutSaid.slice(0, 90)})`);
+    check(
+      'and offers no updates there, because a checkout is updated with git',
+      (await fetch(`http://127.0.0.1:${PORT}/api/update`).then((r) => r.json())).installRoot === null,
+    );
+    await stopLauncher();
+
     // --- 1. A fresh install ships no symlink. The launcher must make one. ----
     makeVersion(app, '1.0.0');
     let started = await (startLauncher(app, state), waitForVersion(25_000));

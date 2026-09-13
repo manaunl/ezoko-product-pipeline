@@ -121,6 +121,10 @@ npm start        # then open http://127.0.0.1:4517
 Or double-click **`start.command`**, which starts the server and opens the
 browser. Nobody needs to see a terminal.
 
+It works in either layout: a source checkout like this one (after `npm install`,
+which it will tell you to run if you haven't), or an installed copy unpacked
+from the release zip, which has a `versions/` folder and updates itself.
+
 The page has two buttons. **Preview** shows what would happen and writes nothing
 anywhere. **Upload to Shopify** creates the products, after a confirmation, and
 the **Limit** box caps how many — that's the control for a cautious first run.

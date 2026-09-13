@@ -66,7 +66,29 @@ Install it from https://nodejs.org (choose the LTS version), then
 double-click this file again."
 fi
 
-# --- which version ------------------------------------------------------------
+# --- installed, or a source checkout? -----------------------------------------
+#
+# Two folders can hold this file and both are legitimate:
+#
+#   installed   versions/<v>/dist/…  with a `current` symlink. What the zip
+#               produces, and what the update button maintains.
+#   source      package.json and src/ beside it — a clone, or the repository
+#               downloaded as a ZIP. Runs the TypeScript directly.
+#
+# Updates only exist in the installed layout; a checkout is updated with git.
+# Supporting both matters because the source ZIP is how this was delivered
+# before the installer existed, and it is still how anyone picks up the code.
+
+if [ -d "$VERSIONS" ]; then
+  MODE=installed
+elif [ -f "$APP/package.json" ] && [ -f "$APP/src/server/main.ts" ]; then
+  MODE=source
+else
+  fail "This folder does not contain the uploader.
+Expected either a 'versions' folder (an installed copy) or 'package.json' and
+'src' (the source code) next to this file. Download it again and replace this
+whole folder."
+fi
 
 point_current_at() {
   # rename(2) over the existing link, so there is never a moment with no
@@ -86,9 +108,9 @@ newest_version() {
 
 # Self-heal a missing link: a fresh install ships no symlink (zip archives carry
 # them unreliably), and a deleted one should not need a person to repair it.
-if [ ! -e "$CURRENT" ]; then
+if [ "$MODE" = installed ] && [ ! -e "$CURRENT" ]; then
   latest="$(newest_version)" || latest=""
-  [ -n "$latest" ] || fail "This folder looks incomplete — there is no 'versions' folder inside it.
+  [ -n "$latest" ] || fail "This folder looks incomplete — 'versions' is there but empty.
 Download the uploader again and replace this whole folder."
   point_current_at "$latest"
 fi
@@ -98,17 +120,37 @@ fi
 first_start=1
 
 while true; do
-  entry="$CURRENT/dist/server/main.js"
-  if [ ! -e "$entry" ]; then
-    fail "The uploader's files are missing or damaged.
+  on_probation=0
+
+  if [ "$MODE" = installed ]; then
+    entry="$CURRENT/dist/server/main.js"
+    if [ ! -e "$entry" ]; then
+      fail "The uploader's files are missing or damaged.
 Download it again and replace this whole folder. Your settings are stored
 separately and will not be lost."
+    fi
+
+    [ -f "$PENDING" ] && on_probation=1
+
+    node "$entry" &
+  else
+    # A checkout runs the TypeScript through tsx. Called directly rather than
+    # through `npm start` so the server's own exit code reaches this script —
+    # npm rewrites it, and codes 3 and 75 are how the server asks for something.
+    tsx="$APP/node_modules/.bin/tsx"
+    if [ ! -x "$tsx" ]; then
+      fail "The dependencies are not installed yet.
+Open Terminal, then run these two lines:
+
+  cd \"$APP\"
+  npm install
+
+Then double-click this file again."
+    fi
+
+    "$tsx" "$APP/src/server/main.ts" &
   fi
 
-  on_probation=0
-  [ -f "$PENDING" ] && on_probation=1
-
-  node "$entry" &
   server=$!
 
   if [ "$first_start" -eq 1 ]; then

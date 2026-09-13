@@ -141,7 +141,14 @@ he notices nothing except that it opened.
    exit 75 restarting exactly once, the double-click case, and nothing written
    into the app folder.
 
-   **Two bugs it caught, both silent:**
+   **A third bug, found by the person using it rather than by a test:** making
+   the launcher understand the installed layout quietly made it *stop*
+   understanding a source checkout — no `versions` folder, so it refused with
+   "this folder looks incomplete". That broke the only delivery route that
+   existed at the time, and the suite did not notice because every scenario in
+   it built an installed layout first. It now runs the real checkout too.
+
+   **Two bugs the suite did catch, both silent:**
 
    - `mv -f new current`, where `current` is a symlink to a directory, makes
      `mv` **follow the link** and move the new link *inside* the version folder.
