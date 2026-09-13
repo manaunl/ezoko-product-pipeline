@@ -569,7 +569,13 @@
   fetch('/api/config')
     .then((r) => r.json())
     .then((config) => {
-      $('config').textContent = `${config.store}${config.sheetTab ? ' · ' + config.sheetTab : ''}`;
+      // The version is on screen because it is the first thing anyone needs to
+      // know when something is wrong, and because it is how you can tell an
+      // update actually landed.
+      const parts = [config.store];
+      if (config.sheetTab) parts.push(config.sheetTab);
+      if (config.version) parts.push(`v${config.version}`);
+      $('config').textContent = parts.join(' · ');
     })
     .catch(() => { $('config').textContent = 'could not read configuration'; });
 
