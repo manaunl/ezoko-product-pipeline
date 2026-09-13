@@ -140,6 +140,16 @@
   #update a { color: inherit; text-decoration: underline; font-size: 13.5px; }
   #update button { font-size: 13.5px; padding: 7px 14px; }
 
+  /* Folded away: going back a version is a rare, deliberate act. */
+  .versions { margin-top: 10px; }
+  .versions > summary {
+    cursor: pointer; font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
+    color: var(--muted); font-family: var(--mono);
+  }
+  .versions > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .versions .acts { margin-top: 10px; }
+  .versions .notes { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+
   /* ---------- results ---------- */
 
   .group { margin-top: 28px; }
@@ -413,6 +423,71 @@
 
   let restarting = false;
 
+  /**
+   * The part that is always available once this is an installed copy: check
+   * now, rather than waiting for the next six-hourly poll, and step back to a
+   * version that was working.
+   *
+   * Folded away by default. Going back a version is the right move perhaps once
+   * a year, and a button sitting in the open invites a press on a bad day.
+   */
+  // What the last manual check found. Re-rendering rebuilds this panel from
+  // scratch, so the result has to live outside it or it erases itself.
+  let checkNote = '';
+
+  function versionTools(status) {
+    const others = status.otherVersions || [];
+    // Rebuilding a <details> loses whether it was open, which would snap it shut
+    // under the hand of whoever just pressed a button inside it.
+    const open = document.querySelector('.versions')?.open ? ' open' : '';
+
+    return `<details class="versions"${open}>
+      <summary>Version ${esc(status.version)}</summary>
+      <div class="acts">
+        <button id="check-now">Check for updates</button>
+      </div>
+      ${checkNote ? `<div class="notes">${esc(checkNote)}</div>` : ''}
+      ${others.length === 0 ? '' : `
+        <div class="notes">Also installed, if this version turns out to be wrong:</div>
+        <div class="acts">
+          ${others.map((v) => `<button data-goback="${esc(v)}">Go back to ${esc(v)}</button>`).join('')}
+        </div>`}
+    </details>`;
+  }
+
+  function wireVersionTools() {
+    const check = $('check-now');
+    if (check) {
+      check.addEventListener('click', async () => {
+        check.disabled = true;
+        check.textContent = 'Checking…';
+
+        const status = await fetch('/api/update').then((r) => r.json(), () => null);
+        if (!status) {
+          checkNote = 'Could not reach GitHub. Check the internet connection and try again.';
+          check.disabled = false;
+          check.textContent = 'Check for updates';
+          return;
+        }
+
+        checkNote = status.error
+          ? `Could not check: ${status.error}`
+          : status.decision.kind === 'available'
+            ? ''
+            : `You are on the latest version, ${status.version}.`;
+        renderUpdate(status);
+      });
+    }
+
+    for (const button of document.querySelectorAll('[data-goback]')) {
+      button.addEventListener('click', () => {
+        const version = button.getAttribute('data-goback');
+        if (!confirm(`Go back to version ${version}?\n\nThe uploader will restart. Your settings and run reports are not affected.`)) return;
+        stepBack(version);
+      });
+    }
+  }
+
   function renderUpdate(status) {
     const box = $('update');
 
@@ -434,12 +509,15 @@
       return;
     }
 
+    const tools = versionTools(status);
+
     if (status.progress && status.progress.state === 'failed') {
       box.innerHTML = `<div class="banner stop">
         <div class="what"><span class="status-title">The update did not install</span>
         <div class="notes">${esc(status.progress.error)}</div>
         <div class="notes">Nothing changed — you are still on version ${esc(status.version)}.</div></div>
-      </div>`;
+      </div>${tools}`;
+      wireVersionTools();
       return;
     }
 
@@ -451,7 +529,8 @@
         <div class="notes">It was undone automatically. You are running
         ${esc(status.rolledBack.running)}, exactly as before. Nothing was lost —
         send this message to whoever maintains the uploader.</div></div>
-      </div>`;
+      </div>${tools}`;
+      wireVersionTools();
       return;
     }
 
@@ -467,8 +546,9 @@
           ${decision.releaseUrl ? `<a href="${esc(decision.releaseUrl)}" target="_blank" rel="noreferrer">What's new</a>` : ''}
           <button id="do-update" class="primary">Update now</button>
         </div>
-      </div>`;
+      </div>${tools}`;
       $('do-update').addEventListener('click', applyUpdate);
+      wireVersionTools();
       return;
     }
 
@@ -478,11 +558,34 @@
       box.innerHTML = `<div class="banner warn">
         <div class="what"><span class="status-title">Version ${esc(decision.version)} cannot be installed</span>
         <div class="notes">${esc(decision.reason)}</div></div>
+      </div>${tools}`;
+      wireVersionTools();
+      return;
+    }
+
+    // Up to date. Still offer the tools, folded away.
+    box.innerHTML = tools;
+    wireVersionTools();
+  }
+
+  /** Switches to a version already on disk. Same restart path as an update. */
+  async function stepBack(version) {
+    const response = await fetch('/api/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version }),
+    }).catch(() => null);
+
+    if (!response || !response.ok) {
+      const message = response ? (await response.json().catch(() => ({}))).error : null;
+      $('update').innerHTML = `<div class="banner stop">
+        <div class="what"><span class="status-title">Could not go back</span>
+        <div class="notes">${esc(message || 'The uploader did not answer.')}</div></div>
       </div>`;
       return;
     }
 
-    box.innerHTML = '';
+    watch();
   }
 
   async function applyUpdate() {

@@ -1,6 +1,6 @@
 {
   "name": "ezoko-product-pipeline",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "description": "Creates draft Shopify products from a Google Sheet and SKU-named photos in Google Drive.",
