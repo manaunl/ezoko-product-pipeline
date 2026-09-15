@@ -255,3 +255,19 @@ just creates something to go stale.
   key (shpss_), not the access token (shpat_)"*.
 - Keep `src/domain/` pure. It's the part testable without credentials, and it's
   where the expensive mistakes live.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as GitHub Issues on `manaunl/ezoko-product-pipeline`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
