@@ -26,6 +26,18 @@ stones without the owner doing it.
 One line of the sheet, exactly as the owner typed it, before any validation.
 _Avoid_: record, entry
 
+**Product type**:
+The sheet's category for a row — `CARVING`, `SPHERE`, `TOWER`. It becomes the
+Shopify product type and a tag, so it is what automated collections are built
+from. In the title only when there is no Product name.
+
+**Product name**:
+The owner's own words for what one piece is — `DRAGON (ON STAND)`, `GHOST IN
+HAT`. Optional, and feeds the title only: `{Stone} {Product name} - {size}
+{weight}`, falling back to the Product type when empty. Never a tag, never
+translated, never used to choose a description.
+_Avoid_: product title (that is the whole title, stone and size included)
+
 **Product Draft**:
 This tool's own fully-validated, ready-to-send representation of a row — SKU,
 title, price, photos, tags all resolved — before anything has been sent to

@@ -17,6 +17,8 @@ export interface SheetRow {
   sku: string;
   stoneName: string;
   productType: string;
+  /** What the piece is ("DRAGON (ON STAND)"). Optional column; empty when absent. */
+  productName: string;
   price: string;
   weight: string;
   height: string;

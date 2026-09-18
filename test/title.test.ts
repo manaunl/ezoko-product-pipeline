@@ -11,7 +11,7 @@ const m = (raw: string, unit: Unit | null = 'cm'): Measure => {
 const title = (over: Partial<Parameters<typeof buildTitle>[0]> = {}) =>
   buildTitle({
     stoneEnglish: 'Malachite',
-    productType: 'Sphere',
+    piece: 'Sphere',
     dimension: m('38 mm', null),
     weight: m('110g'),
     ...over,
@@ -51,7 +51,7 @@ describe('when something is missing', () => {
   });
 
   it('returns nothing when there is no stone and no type', () => {
-    expect(title({ stoneEnglish: '', productType: '' })).toBe('');
+    expect(title({ stoneEnglish: '', piece: '' })).toBe('');
   });
 
   it('ignores a length in the weight column instead of printing nonsense', () => {

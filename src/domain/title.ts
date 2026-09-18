@@ -1,8 +1,9 @@
 /**
  * Product titles.
  *
- * Shape: `{Stone} {Type} - {size} {weight}`, e.g. "Malachite Sphere - 38 mm
- * 110 gr". The owner asked for the weight in the title: for a unique physical
+ * Shape: `{Stone} {Piece} - {size} {weight}`, e.g. "Malachite Sphere - 38 mm
+ * 110 gr". The piece is the owner's PRODUCT name when he has written one
+ * ("Dragon (on Stand)"), and the product type otherwise. The owner asked for the weight in the title: for a unique physical
  * piece, size and weight together are what a buyer is actually choosing between.
  *
  * We originally decided to always use height. The real sheet disproved that:
@@ -18,6 +19,7 @@
  */
 
 import { formatMeasureRounded, formatNumber, type Measure } from './measure.js';
+import { titleCase } from './stones.js';
 
 /** First dimension with a value. Order reflects how a piece is normally described. */
 export function pickTitleMeasure(
@@ -42,20 +44,45 @@ function weightForTitle(weight: Measure | null): string | null {
   return null;
 }
 
+/** Kept lower case inside a product name, as English titles write them. */
+const SMALL_WORDS = new Set(['a', 'an', 'and', 'at', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+
+/**
+ * The owner's PRODUCT name, as a title reads it: "GHOST IN HAT" → "Ghost in
+ * Hat", "CAT HEAD (on a string)" → "Cat Head (on a String)".
+ *
+ * Deliberately separate from `titleCase`, which formats stones and types: those
+ * titles are already in Shopify and must not change under this rule. His
+ * brackets are kept — they are what tells "Dragon" from "Dragon (on Stand)".
+ */
+export function formatProductName(raw: string): string {
+  return titleCase(raw)
+    .split(' ')
+    .map((word, i) => {
+      const bracket = word.startsWith('(') ? '(' : '';
+      const bare = word.slice(bracket.length);
+      const lower = bare.toLocaleLowerCase('hu-HU');
+      if (i > 0 && SMALL_WORDS.has(lower)) return bracket + lower;
+      return bracket + bare.charAt(0).toLocaleUpperCase('hu-HU') + bare.slice(1);
+    })
+    .join(' ');
+}
+
 export interface TitleInput {
   stoneEnglish: string;
-  productType: string;
+  /** What the piece is: the formatted PRODUCT name, or the title-cased type. */
+  piece: string;
   dimension: Measure | null;
   weight: Measure | null;
 }
 
 export function buildTitle({
   stoneEnglish,
-  productType,
+  piece,
   dimension,
   weight,
 }: TitleInput): string {
-  const name = [stoneEnglish, productType]
+  const name = [stoneEnglish, piece]
     .map((part) => part.trim().replace(/\s+/g, ' '))
     .filter((part) => part !== '')
     .join(' ');

@@ -19,7 +19,7 @@ import { normaliseSku } from './filenames.js';
 import { isBlank, parseMeasure, type Measure, type Unit } from './measure.js';
 import { parseHufPrice } from './numbers.js';
 import { translateStone, titleCase } from './stones.js';
-import { buildTags, buildTitle, pickTitleMeasure } from './title.js';
+import { buildTags, buildTitle, formatProductName, pickTitleMeasure } from './title.js';
 import type { PhotoIndex, RowOutcome, RowProblem, SheetRow } from './types.js';
 
 /**
@@ -212,6 +212,13 @@ export function rowToOutcome(
     return invalid('STONE Name', halfDecided('STONE Name', row.stoneName));
   }
 
+  // PRODUCT name is optional, so empty means "use the type". A bare "?" is
+  // different: he has not decided, and the type would be a guess.
+  if (row.productName.trim() === '?') return skip('PRODUCT name not decided yet');
+  if (isHalfDecided(row.productName)) {
+    return invalid('PRODUCT name', halfDecided('PRODUCT name', row.productName));
+  }
+
   if (isBlank(row.price)) return skip('PRICE not set yet');
 
   const matched = photos.bySku.get(sku) ?? [];
@@ -241,7 +248,11 @@ export function rowToOutcome(
 
   const productType = titleCase(row.productType);
   const dimension = pickTitleMeasure(height, width, depth);
-  const title = buildTitle({ stoneEnglish: stone.english, productType, dimension, weight });
+  // The owner's PRODUCT name says what the piece is ("Dragon (on Stand)"); the
+  // type is only the fallback. Tags and product type stay on the type, so the
+  // collections are unaffected.
+  const piece = isBlank(row.productName) ? productType : formatProductName(row.productName);
+  const title = buildTitle({ stoneEnglish: stone.english, piece, dimension, weight });
 
   if (title === '') {
     problems.push({

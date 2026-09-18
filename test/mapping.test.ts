@@ -18,6 +18,7 @@ const malachiteSphere: SheetRow = {
   sku: 'SP-190-B',
   stoneName: 'Malachit',
   productType: 'SPHERE',
+  productName: '',
   price: '8500',
   weight: '110g',
   height: '',
@@ -87,6 +88,55 @@ describe('a complete row', () => {
       'SP-190-B_02.jpg',
       'SP-190-B_03.jpg',
     ]);
+  });
+});
+
+describe('the PRODUCT name, when the owner has written one', () => {
+  const ready = (overrides: Partial<SheetRow>) => {
+    const outcome = rowToOutcome(row({ productType: 'CARVING', ...overrides }), photos);
+    if (outcome.kind !== 'ready') throw new Error(`expected ready, got ${outcome.kind}`);
+    return outcome.draft;
+  };
+
+  it('takes the place of the type in the title', () => {
+    expect(ready({ productName: 'BAT' }).title).toBe('Malachite Bat - 38 mm 110 gr');
+  });
+
+  it('leaves the title exactly as before when empty', () => {
+    expect(ready({ productName: '' }).title).toBe('Malachite Carving - 38 mm 110 gr');
+    expect(ready({ productName: '  ' }).title).toBe('Malachite Carving - 38 mm 110 gr');
+  });
+
+  it('reads as a title: small words lower case, the owner’s brackets kept', () => {
+    // Every shape in the real sheet: typed in capitals, with notes in brackets
+    // that tell "Dragon" and "Dragon (on Stand)" apart.
+    const cases: Record<string, string> = {
+      'GHOST IN HAT': 'Ghost in Hat',
+      'DRAGONFLY (ON STAND)': 'Dragonfly (on Stand)',
+      'BUTTERFLY (ON SPRING)': 'Butterfly (on Spring)',
+      'CAT HEAD (on a string)': 'Cat Head (on a String)',
+      'MOTHER WITH CHILD': 'Mother with Child',
+      'CAT ON TOMBSTONE': 'Cat on Tombstone',
+      'rotating glass tumbler': 'Rotating Glass Tumbler',
+      'POISON BOTTLE': 'Poison Bottle',
+    };
+    for (const [typed, shown] of Object.entries(cases)) {
+      expect(ready({ productName: typed }).title, typed).toBe(`Malachite ${shown} - 38 mm 110 gr`);
+    }
+  });
+
+  it('capitalises a small word when it starts the name', () => {
+    expect(ready({ productName: 'THE HERMIT' }).title).toContain('Malachite The Hermit -');
+  });
+
+  it('ignores stray spaces', () => {
+    expect(ready({ productName: '  GHOST   IN  HAT ' }).title).toContain('Malachite Ghost in Hat -');
+  });
+
+  it('does not touch tags or product type, so collections keep filling themselves', () => {
+    const draft = ready({ productName: 'DRAGON (ON STAND)' });
+    expect(draft.tags).toEqual(['malachite', 'carving']);
+    expect(draft.productType).toBe('Carving');
   });
 });
 
@@ -163,6 +213,11 @@ describe('rows that are simply not ready — expected, not faults', () => {
     expect(skipReason({ stoneName: '?' })).toContain('STONE Name');
   });
 
+  it('skips when the product name is still "?", rather than falling back to the type', () => {
+    // Falling back would create a permanent title he said he hadn't decided on.
+    expect(skipReason({ productName: '?' })).toContain('PRODUCT name');
+  });
+
   it('skips when the photographer has not marked it', () => {
     expect(skipReason({ photoStatus: '' })).toContain('PHOTO Status');
   });
@@ -199,6 +254,12 @@ describe('rows that need a human', () => {
     expect(message).toContain('"BRONZE ?"');
     expect(message).toContain('question mark');
     expect(message).toContain('run again');
+  });
+
+  it('refuses a product name with a question mark in it', () => {
+    const message = problems({ productName: 'DRAGON ?' });
+    expect(message).toContain('PRODUCT name "DRAGON ?"');
+    expect(message).toContain('question mark');
   });
 
   it('flags the question mark even before the price is set', () => {

@@ -140,7 +140,7 @@ Don't relitigate these without asking; each was argued through.
 | **Shopify is the source of truth, not the sheet** | Create + sheet-update aren't one transaction. Makes every run repeatable |
 | Photos: split filename on the **last** underscore | Exact SKU match, so `CA-738-A1` can't steal `CA-738-A11`'s photos |
 | Normalise the unambiguous, refuse the ambiguous | A best-effort guess puts the wrong photo on the wrong stone |
-| Title = `{Stone} {Type} - {size} {weight}` | the owner's format. Size = first of height→width→depth in the cell's own unit; weight written as `gr`. Either part is dropped when missing |
+| Title = `{Stone} {Product name or Type} - {size} {weight}` | the owner's format. The optional `PRODUCT name` column says what a carving actually is; empty falls back to the type, and tags stay on the type. Its small words stay lower case and its brackets are kept: `Dragonfly (on Stand)`. Size = first of height→width→depth in the cell's own unit; weight written as `gr`. Either part is dropped when missing |
 | Units read from the **cell**, not the header | The WIDTH header says nothing; the data says `"37 mm"` |
 | Prices are whole forints | HUF; every separator is a thousands separator |
 | Tags = lowercase stone + type | Shopify automated collections then build themselves |
@@ -211,8 +211,8 @@ match on a trimmed lowercase prefix — never by position.
 
 | Shape in the data | Handling |
 |---|---|
-| `"?"` in `PRICE` or `STONE Name` | Placeholder for "not decided". Row is **skipped**, not failed |
-| `"?"` beside other text: `"BRONZE ?"` | A half-made decision, not a placeholder. **Needs fixing** — flagged even before the price is set, never created |
+| `"?"` in `PRICE`, `STONE Name` or `PRODUCT name` | Placeholder for "not decided". Row is **skipped**, not failed |
+| `"?"` beside other text: `"BRONZE ?"`, in `STONE Name` or `PRODUCT name` | A half-made decision, not a placeholder. **Needs fixing** — flagged even before the price is set, never created |
 | Dimensions as ranges: `"5-6 cm"`, `"2,5-3,5 cm"` | Both ends kept; title uses the upper bound |
 | `"17 cm (box)"` | Note stripped for parsing, kept for display |
 | Range SKUs: `CA-738-A1-A11` | **Refused** — one row covering 11 pieces with one price. The owner must split them |
