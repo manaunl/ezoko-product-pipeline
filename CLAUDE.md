@@ -212,6 +212,7 @@ match on a trimmed lowercase prefix — never by position.
 | Shape in the data | Handling |
 |---|---|
 | `"?"` in `PRICE` or `STONE Name` | Placeholder for "not decided". Row is **skipped**, not failed |
+| `"?"` beside other text: `"BRONZE ?"` | A half-made decision, not a placeholder. **Needs fixing** — flagged even before the price is set, never created |
 | Dimensions as ranges: `"5-6 cm"`, `"2,5-3,5 cm"` | Both ends kept; title uses the upper bound |
 | `"17 cm (box)"` | Note stripped for parsing, kept for display |
 | Range SKUs: `CA-738-A1-A11` | **Refused** — one row covering 11 pieces with one price. The owner must split them |

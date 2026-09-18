@@ -84,6 +84,15 @@ export interface MapOptions {
   descriptionAliases?: Readonly<Record<string, string>>;
 }
 
+/** Text with a question mark in it — as opposed to the bare "?" placeholder. */
+function isHalfDecided(raw: string): boolean {
+  return !isBlank(raw) && raw.includes('?');
+}
+
+function halfDecided(label: string, raw: string): string {
+  return `${label} "${raw.trim()}" contains a question mark — decide the name, then run again`;
+}
+
 /** Optional measurement: blank is fine, malformed is not. */
 function optional(
   raw: string,
@@ -195,6 +204,14 @@ export function rowToOutcome(
   // "?" is what the owner types for "not decided yet". These rows are simply not
   // ready, which is a different thing from being wrong.
   if (isBlank(row.stoneName)) return skip('STONE Name not filled in yet');
+
+  // A "?" beside other text ("BRONZE ?") is a decision half made. It is not a
+  // placeholder, so it would otherwise reach a title that can never be renamed.
+  // Checked before the price so it is flagged while the row is being filled in.
+  if (isHalfDecided(row.stoneName)) {
+    return invalid('STONE Name', halfDecided('STONE Name', row.stoneName));
+  }
+
   if (isBlank(row.price)) return skip('PRICE not set yet');
 
   const matched = photos.bySku.get(sku) ?? [];

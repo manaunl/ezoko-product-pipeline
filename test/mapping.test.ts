@@ -190,6 +190,22 @@ describe('rows that need a human', () => {
   it('refuses an unparseable measurement', () => {
     expect(problems({ width: 'big' })).toContain('WIDTH');
   });
+
+  it('refuses a stone name with a question mark in it, naming the cell and the fix', () => {
+    // "BRONZE ?" is a half-made decision. Only a bare "?" is a placeholder, so
+    // without this it would go out titled "Bronze ? Horse" — and titles are
+    // never updated.
+    const message = problems({ stoneName: 'BRONZE ?' });
+    expect(message).toContain('"BRONZE ?"');
+    expect(message).toContain('question mark');
+    expect(message).toContain('run again');
+  });
+
+  it('flags the question mark even before the price is set', () => {
+    // The real row is "BRONZE ?" with no price. Waiting for the price would hide
+    // the half-decision behind "not ready yet".
+    expect(problems({ stoneName: 'BRONZE ?', price: '?' })).toContain('question mark');
+  });
 });
 
 describe('range SKU detection', () => {
