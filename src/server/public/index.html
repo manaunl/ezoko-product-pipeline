@@ -72,18 +72,6 @@
 
   .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
 
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .field label {
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--muted); font-family: var(--mono);
-  }
-  .field input {
-    width: 110px; padding: 9px 11px; font: inherit; font-family: var(--mono);
-    color: var(--ink); background: var(--ground);
-    border: 1px solid var(--line); border-radius: 7px;
-  }
-  .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
   .spacer { flex: 1; }
 
   button {
@@ -181,7 +169,27 @@
   .t-would   { background: var(--accent-soft); color: var(--accent); }
   .t-partial { background: var(--warn-soft); color: var(--warn); }
   .t-failed, .t-invalid { background: var(--stop-soft); color: var(--stop); }
-  .t-exists, .t-skipped { background: var(--surface); color: var(--muted); }
+  .t-exists, .t-skipped, .t-unpicked { background: var(--surface); color: var(--muted); }
+
+  /* ---------- selection ---------- */
+
+  #selection:not(:empty) { margin-top: 24px; }
+  .pickbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 1;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .pickbar .note { font-size: 13.5px; color: var(--muted); }
+  .pickbar .expired { font-size: 14.5px; color: var(--warn); }
+
+  .row.pick { grid-template-columns: 22px 108px 130px 1fr; cursor: pointer; }
+  .row.pick:hover { background: var(--surface); }
+  .row.pick.off { cursor: default; }
+  .row.pick.off:hover { background: none; }
+  .row input[type=checkbox] {
+    width: 16px; height: 16px; margin: 0; align-self: center; accent-color: var(--accent);
+  }
 
   details > summary {
     cursor: pointer; font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
@@ -190,7 +198,7 @@
   details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
   @media (max-width: 620px) {
-    .row { grid-template-columns: 1fr; gap: 4px; }
+    .row, .row.pick { grid-template-columns: 1fr; gap: 4px; }
   }
 </style>
 </head>
@@ -206,22 +214,17 @@
 
   <div class="panel">
     <div class="controls">
-      <div class="field">
-        <label for="limit">Limit</label>
-        <input id="limit" type="number" min="1" placeholder="all" inputmode="numeric">
-      </div>
-      <div class="spacer"></div>
-      <button id="preview">Preview</button>
-      <button id="upload" class="primary">Upload to Shopify</button>
+      <button id="preview" class="primary">Preview</button>
     </div>
     <p class="hint">
-      <strong>Preview</strong> shows what would happen and writes nothing, anywhere.
-      <strong>Upload</strong> creates the products as drafts — nothing goes on sale until you
-      publish it yourself in Shopify.
+      <strong>Preview</strong> checks the spreadsheet and photos and writes nothing, anywhere.
+      Then tick the products you want and press <strong>Create selected</strong>. They are
+      created as drafts — nothing goes on sale until you publish it yourself in Shopify.
     </p>
   </div>
 
   <div id="status"></div>
+  <div id="selection"></div>
   <div id="results"></div>
 </div>
 
@@ -235,6 +238,7 @@
     partial:        { text: 'partial',      cls: 't-partial' },
     exists:         { text: 'already there',cls: 't-exists' },
     skipped:        { text: 'not ready',    cls: 't-skipped' },
+    'not-selected': { text: 'not selected', cls: 't-unpicked' },
     invalid:        { text: 'needs fixing', cls: 't-invalid' },
     failed:         { text: 'failed',       cls: 't-failed' },
   };
@@ -244,6 +248,7 @@
     { key: 'partial',      title: 'Created, but some photos did not upload' },
     { key: 'created',      title: 'Created' },
     { key: 'would-create', title: 'Would be created' },
+    { key: 'not-selected', title: 'Ready, not selected' },
     { key: 'invalid',      title: 'Needs fixing in the spreadsheet' },
     { key: 'exists',       title: 'Already in Shopify' },
     { key: 'skipped',      title: 'Not ready yet', collapsed: true },
@@ -251,20 +256,73 @@
 
   let polling = null;
 
+  /**
+   * How long a Selection may be made after the preview it comes from.
+   *
+   * This keeps the owner's picture of the sheet current. It is not what makes
+   * creating safe: every commit re-reads the sheet and re-checks Shopify, so the
+   * worst an old Selection can do is come back as already there or not ready.
+   * Measured from the most recent *finished* preview, which the server reads
+   * from the run reports on disk — a reload or a restart doesn't reset it, and a
+   * commit doesn't extend it.
+   */
+  const SELECTION_WINDOW_MS = 4 * 60 * 60 * 1000;
+  const EXPIRED = 'This preview is over 4 hours old. Press Preview to check again.';
+
+  /** The last status from the server, and the SKUs ticked in it. */
+  let latest = null;
+  const ticked = new Set();
+
+  function selectionExpired() {
+    if (!latest || !latest.lastPreviewAt) return true;
+    return Date.now() - Date.parse(latest.lastPreviewAt) > SELECTION_WINDOW_MS;
+  }
+
+  /**
+   * The group a result is shown in. Ready rows a commit wasn't asked to create
+   * come back as `skipped` with the detail "not selected" (see selection.ts) — the same status as
+   * rows that aren't ready, so the sheet leaves them alone — but on the page
+   * they are a different thing and must not be confused with them.
+   */
+  function groupOf(result) {
+    return result.status === 'skipped' && result.detail === 'not selected'
+      ? 'not-selected'
+      : result.status;
+  }
+
+  /**
+   * Rows that can be ticked: what a finished preview would create — including
+   * rows whose Shopify check failed, since the commit checks again — and what a
+   * finished commit left unselected.
+   */
+  function tickable(state) {
+    if (!state || state.status !== 'finished' || state.stale) return [];
+    return (state.results ?? []).filter((r) =>
+      state.mode === 'preview' ? r.status === 'would-create' : groupOf(r) === 'not-selected');
+  }
+
   function esc(text) {
     return String(text ?? '').replace(/[&<>"]/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   }
 
-  function renderRow(result) {
-    const tag = TAG[result.status] ?? { text: result.status, cls: '' };
+  function renderRow(result, pick) {
+    const tag = TAG[groupOf(result)] ?? { text: result.status, cls: '' };
     const bad = result.status === 'failed' || result.status === 'invalid';
     const photos = result.photos && result.status !== 'would-create'
       ? `${result.photos.ready}/${result.photos.total} photos`
       : (result.photos ? `${result.photos.total} photos` : '');
 
+    const box = pick
+      ? `<input type="checkbox" data-sku="${esc(result.sku)}"
+           ${ticked.has(result.sku) ? 'checked' : ''} ${pick.disabled ? 'disabled' : ''}
+           aria-label="Create ${esc(result.sku)}">`
+      : '';
+    const el = pick ? 'label' : 'div';
+
     return `
-      <div class="row">
+      <${el} class="row${pick ? ' pick' : ''}${pick && pick.disabled ? ' off' : ''}">
+        ${box}
         <span class="tag ${tag.cls}">${esc(tag.text)}</span>
         <span class="sku">${esc(result.sku)}</span>
         <div class="body">
@@ -274,23 +332,80 @@
           ${photos ? `<div class="detail">${esc(photos)}</div>` : ''}
           ${result.adminUrl ? `<a href="${esc(result.adminUrl)}" target="_blank" rel="noreferrer">Open in Shopify →</a>` : ''}
         </div>
-      </div>`;
+      </${el}>`;
   }
 
-  function renderResults(results) {
+  function renderResults(state) {
     const box = $('results');
+    const results = state && state.results;
     if (!results || results.length === 0) { box.innerHTML = ''; return; }
 
-    box.innerHTML = GROUPS.map((group) => {
-      const rows = results.filter((r) => r.status === group.key);
+    const canTick = new Set(tickable(state));
+    const pick = { disabled: selectionExpired() };
+
+    // Selected SKUs no row in the sheet has any more — deleted or renamed since
+    // the preview they were ticked in.
+    const missing = (state.report && state.report.selectedNotInSheet) || [];
+    const warning = missing.length === 0 ? '' : `<div class="banner warn group">
+      <span class="status-title">Selected but not in the sheet</span>
+      <div style="margin-top:6px">${esc(missing.join(', '))} — nothing was created for
+      ${missing.length === 1 ? 'it' : 'these'}. Press Preview to see the sheet as it is now.</div>
+    </div>`;
+
+    box.innerHTML = warning + GROUPS.map((group) => {
+      const rows = results.filter((r) => groupOf(r) === group.key);
       if (rows.length === 0) return '';
       const heading = `${group.title} — ${rows.length}`;
-      const body = `<div class="rows">${rows.map(renderRow).join('')}</div>`;
+      const body = `<div class="rows">${
+        rows.map((r) => renderRow(r, canTick.has(r) ? pick : null)).join('')
+      }</div>`;
 
       return group.collapsed
         ? `<details class="group"><summary>${esc(heading)}</summary>${body}</details>`
         : `<section class="group"><h2>${esc(heading)}</h2>${body}</section>`;
     }).join('');
+
+    for (const input of box.querySelectorAll('input[data-sku]')) {
+      input.addEventListener('change', () => {
+        const sku = input.getAttribute('data-sku');
+        if (input.checked) ticked.add(sku); else ticked.delete(sku);
+        renderSelection();
+      });
+    }
+  }
+
+  /** Select all, and Create selected (N) — or, past the window, why not. */
+  function renderSelection() {
+    const box = $('selection');
+    const rows = tickable(latest);
+
+    // Forget ticks on rows that can no longer be ticked, so the count on the
+    // button is always what would actually be sent.
+    const present = new Set(rows.map((r) => r.sku));
+    for (const sku of [...ticked]) if (!present.has(sku)) ticked.delete(sku);
+
+    if (rows.length === 0) { box.innerHTML = ''; return; }
+
+    if (selectionExpired()) {
+      box.innerHTML = `<div class="pickbar"><span class="expired">${esc(EXPIRED)}</span></div>`;
+      return;
+    }
+
+    const all = ticked.size === rows.length;
+    box.innerHTML = `<div class="pickbar">
+      <button id="select-all">${all ? 'Select none' : 'Select all'}</button>
+      <span class="note">${ticked.size} of ${rows.length} ticked</span>
+      <div class="spacer"></div>
+      <button id="create" class="primary" ${ticked.size === 0 ? 'disabled' : ''}>
+        Create selected (${ticked.size})</button>
+    </div>`;
+
+    $('select-all').addEventListener('click', () => {
+      if (all) ticked.clear(); else for (const r of rows) ticked.add(r.sku);
+      renderSelection();
+      renderResults(latest);
+    });
+    $('create').addEventListener('click', create);
   }
 
   function renderStatus(state) {
@@ -334,7 +449,7 @@
 
     const counts = {};
     for (const result of state.results ?? []) {
-      counts[result.status] = (counts[result.status] ?? 0) + 1;
+      counts[groupOf(result)] = (counts[groupOf(result)] ?? 0) + 1;
     }
     const chips = Object.entries(counts)
       .map(([key, n]) => `<span class="count"><b>${n}</b> ${esc(TAG[key]?.text ?? key)}</span>`)
@@ -370,12 +485,13 @@
   async function poll() {
     try {
       const state = await (await fetch('/api/status')).json();
+      latest = state;
       renderStatus(state);
-      renderResults(state.results);
+      renderSelection();
+      renderResults(state);
 
       const busy = state.status === 'running' && !state.stale;
       $('preview').disabled = busy;
-      $('upload').disabled = busy;
 
       if (!busy && polling) { clearInterval(polling); polling = null; }
     } catch {
@@ -383,37 +499,55 @@
     }
   }
 
-  async function start(commit) {
-    const raw = $('limit').value.trim();
+  async function create() {
+    // Checked at the moment of pressing, not when the page drew the button, so
+    // a tab left open overnight is still caught.
+    if (selectionExpired()) { renderSelection(); renderResults(latest); return; }
 
-    if (commit) {
-      const scope = raw ? `at most ${raw} product${raw === '1' ? '' : 's'}` : 'every product that is ready';
-      if (!confirm(`Create ${scope} in Shopify?\n\nThey are created as drafts, so nothing goes on sale until you publish it yourself.`)) return;
-    }
+    const skus = [...ticked];
+    if (skus.length === 0) return;
+    const what = skus.length === 1 ? `${skus[0]}` : `these ${skus.length} products`;
+    if (!confirm(`Create ${what} in Shopify?\n\nThey are created as drafts, so nothing goes on sale until you publish it yourself.`)) return;
 
+    start({ commit: true, skus });
+  }
+
+  async function start(body) {
     $('preview').disabled = true;
-    $('upload').disabled = true;
+    const createButton = $('create');
+    if (createButton) createButton.disabled = true;
 
     const response = await fetch('/api/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commit, limit: raw === '' ? null : raw }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      alert(body.error ?? 'Could not start the run.');
+      const error = await response.json().catch(() => ({}));
+      alert(error.error ?? 'Could not start the run.');
       $('preview').disabled = false;
-      $('upload').disabled = false;
+      renderSelection();
       return;
     }
 
+    ticked.clear();
     if (!polling) polling = setInterval(poll, POLL_MS);
     poll();
   }
 
-  $('preview').addEventListener('click', () => start(false));
-  $('upload').addEventListener('click', () => start(true));
+  $('preview').addEventListener('click', () => start({ commit: false }));
+
+  // Redraw when the window closes, so it shows without a click. Only then:
+  // redrawing folds away anything the person has opened. The click itself
+  // checks again regardless.
+  let wasExpired = null;
+  setInterval(() => {
+    if (!latest || polling) return;
+    const expired = selectionExpired();
+    if (wasExpired === false && expired) { renderSelection(); renderResults(latest); }
+    wasExpired = expired;
+  }, 60 * 1000);
 
   // ---------- updates ----------
   //

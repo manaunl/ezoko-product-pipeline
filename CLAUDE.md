@@ -31,9 +31,16 @@ update by itself.
 - Shopify connection via client credentials grant, token auto-refresh
 - **Full create path**: staged upload → `productCreate` (draft) → variant
   (SKU/price/weight) → inventory 1 → wait for image processing
-- Batch runner with preview/commit, `--limit`, and JSON run artifacts
-- **Local web page** (`npm start`, or double-click `start.command`) — Preview and
-  Upload buttons, limit box, background runs with file-based progress polling,
+- Batch runner with preview/commit, `--limit`, repeatable `--sku`, and JSON run
+  artifacts
+- **Local web page** (`npm start`, or double-click `start.command`) — a Preview
+  button, then a checkbox on every row it would create (nothing ticked),
+  **Select all** and **Create selected (N)**; ready rows left unticked show as
+  *not selected* and can be ticked from the commit's results. Ticking is allowed
+  for four hours after the last finished preview (read from the run reports, so
+  a reload or restart keeps it, a commit doesn't extend it; page-only, not the
+  CLI). The server refuses a commit with no SKUs. Background runs with file-based
+  progress polling,
   concurrent-run refusal, stale-run detection, bound to `127.0.0.1` only
 - **Write-back to the sheet** — four tool-owned columns, appended if absent;
   rows located by SKU in a fresh read at write time; written per product as it
@@ -83,7 +90,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 172 unit tests, no credentials required
+- 185 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not

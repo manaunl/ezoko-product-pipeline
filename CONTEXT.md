@@ -70,6 +70,19 @@ earlier run), `failed`, or `would-create` (what a preview reports in place of
 write-back has one status vocabulary. Don't conflate with Row Outcome: a
 `ready` row can still end up `failed` if Shopify rejects it mid-run.
 
+**Selection**:
+The SKUs the owner ticks after a preview to say "create these ones". It
+contains only SKUs, never the previewed Product Drafts: a commit re-reads the
+sheet and re-checks Shopify, and creates a selected SKU only if it is still
+`ready` and not already there, using the row as it is *now*. Ready rows he
+didn't tick are not attempted. Nothing starts ticked. A selection can be made
+from a preview or from the rows a commit left untouched, but not more than four
+hours after the preview it all came from — a commit does not restart that
+clock. Past that, the owner is asked to preview again. The clock is the most
+recent *finished* preview, so reloading the page or restarting the app does not
+reset it.
+_Avoid_: batch, cart
+
 ### Photo matching
 
 **Matched Photo**:

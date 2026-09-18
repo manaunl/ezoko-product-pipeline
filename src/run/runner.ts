@@ -9,6 +9,7 @@
 import { loadDescriptionAliases } from '../domain/descriptions.js';
 import { claimedSku, indexPhotos, normaliseSku } from '../domain/filenames.js';
 import { findDuplicateSkus, rowToOutcome } from '../domain/mapping.js';
+import { chooseRowsToAttempt } from '../domain/selection.js';
 import { loadAuth } from '../google/auth.js';
 import { listPhotoFiles } from '../google/drive.js';
 import { readSheet } from '../google/sheets.js';
@@ -27,6 +28,12 @@ export interface RunOptions {
   commit?: boolean;
   /** Stop after this many products would be created. The staged-rollout control. */
   limit?: number;
+  /**
+   * The Selection: create only these SKUs. Absent means every ready row.
+   * Ignored by a preview, which always examines every row — selecting happens
+   * after it.
+   */
+  skus?: string[];
   /** Directory for the run artifact. */
   runsDir?: string;
   onProgress?: (result: ProductResult, done: number, total: number) => void;
@@ -89,6 +96,7 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
       .filter((r) => sheetSkus.has(claimedSku(r.file.name)))
       .map((r) => ({ name: r.file.name, reason: r.reason })),
     results: [],
+    selectedNotInSheet: [],
     writeBack: null,
   };
 
@@ -155,7 +163,16 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
   report.descriptions.stonesWanted = wanted.size;
   report.descriptions.stonesMatched = [...wanted.values()].filter(Boolean).length;
 
-  const selected = options.limit == null ? creatable : creatable.slice(0, options.limit);
+  // A commit trusts nothing from the preview the SKUs were chosen from: every
+  // row was re-read above, and each selected one is created only if it is
+  // still ready now — and, in createOne, not already in Shopify.
+  const choice = chooseRowsToAttempt(creatable, {
+    limit: options.limit,
+    skus: commit ? options.skus : undefined,
+    sheetSkus,
+  });
+  const { attempt, notAttempted } = choice;
+  report.selectedNotInSheet = choice.missingFromSheet;
 
   if (!commit) {
     // Preview asks Shopify too. Without this it reports rows it "would create"
@@ -163,7 +180,7 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
     // being asked. The lookup is read-only, so preview still writes nothing.
     let done = 0;
 
-    for (const { rowNumber, draft } of selected) {
+    for (const { rowNumber, draft } of attempt) {
       const base = { rowNumber, sku: draft.displaySku };
 
       try {
@@ -204,18 +221,18 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
       }
 
       done += 1;
-      options.onProgress?.(report.results[report.results.length - 1]!, done, selected.length);
+      options.onProgress?.(report.results[report.results.length - 1]!, done, attempt.length);
       await writer.flush();
     }
   } else {
     const locationId = await primaryLocationId();
     let done = 0;
 
-    for (const { rowNumber, draft } of selected) {
+    for (const { rowNumber, draft } of attempt) {
       const result = await createOne(auth, draft, rowNumber, locationId);
       report.results.push(result);
       done += 1;
-      options.onProgress?.(result, done, selected.length);
+      options.onProgress?.(result, done, attempt.length);
       await writer.flush();
 
       // Record it in the sheet straight away rather than at the end of the run.
@@ -232,13 +249,13 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
     }
   }
 
-  for (const { rowNumber, draft } of creatable.slice(selected.length)) {
+  for (const { rowNumber, draft, reason } of notAttempted) {
     report.results.push({
       rowNumber,
       sku: draft.displaySku,
       title: draft.title,
       status: 'skipped',
-      detail: `not attempted — the run was limited to ${options.limit} products`,
+      detail: reason,
     });
   }
   report.results.sort((a, b) => a.rowNumber - b.rowNumber);

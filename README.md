@@ -125,9 +125,22 @@ It works in either layout: a source checkout like this one (after `npm install`,
 which it will tell you to run if you haven't), or an installed copy unpacked
 from the release zip, which has a `versions/` folder and updates itself.
 
-The page has two buttons. **Preview** shows what would happen and writes nothing
-anywhere. **Upload to Shopify** creates the products, after a confirmation, and
-the **Limit** box caps how many — that's the control for a cautious first run.
+**Preview** shows what would happen and writes nothing anywhere. Every row it
+would create then gets a checkbox, with nothing ticked; **Create selected (N)**
+creates only the ticked ones, after a confirmation. The ready rows left unticked
+are shown as *not selected*, can be ticked straight from the commit's results,
+and are left untouched in the sheet. That makes the cautious first run "tick
+one, check it in the admin, tick the rest".
+
+A commit trusts nothing from the preview: it sends only SKUs, re-reads
+everything, and creates a selected SKU only if its row is still ready and it is
+not already in Shopify. A selected SKU no row has any more is reported as
+*selected but not in the sheet*.
+
+Ticking is allowed for **four hours** after the most recent finished preview —
+past that the results stay readable but the page asks for a new Preview. The
+time comes from the run reports on disk, so a reload or restart keeps it and a
+commit doesn't extend it. Only the page enforces it; the command line doesn't.
 
 The run happens in the background and its progress is written to
 `current.json` in the state directory's `runs/` folder, which the page polls. **Closing the tab does not stop the
@@ -145,7 +158,11 @@ write token and has no business being reachable from the network.
 npx tsx src/scripts/run.ts                    # preview — writes nothing
 npx tsx src/scripts/run.ts --commit           # create everything that is ready
 npx tsx src/scripts/run.ts --commit --limit 3 # create at most 3
+npx tsx src/scripts/run.ts --commit --sku SP-190-B --sku CA-738-A1  # only these
 ```
+
+`--sku` is what the page's **Create selected** uses; a preview ignores it.
+Without it, `--commit` still means everything that is ready.
 
 **Preview is the default.** `--commit` is required to write anything, because
 the dangerous action should be the one you have to ask for.

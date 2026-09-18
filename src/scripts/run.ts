@@ -4,6 +4,7 @@
  *   npx tsx src/scripts/run.ts                  # preview — writes nothing
  *   npx tsx src/scripts/run.ts --commit         # create everything ready
  *   npx tsx src/scripts/run.ts --commit --limit 3
+ *   npx tsx src/scripts/run.ts --commit --sku SP-190-B --sku CA-738-A1
  *
  * Preview is the default and --commit is required to write, because the
  * dangerous thing should be the one you have to ask for.
@@ -44,6 +45,20 @@ function parseLimit(): number | undefined {
   return value;
 }
 
+/** Every `--sku`, in order. Undefined when there are none, meaning everything. */
+function parseSkus(): string[] | undefined {
+  const skus: string[] = [];
+  process.argv.forEach((arg, at) => {
+    if (arg !== '--sku') return;
+    const value = process.argv[at + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error('--sku needs a SKU after it, e.g. --sku SP-190-B');
+    }
+    skus.push(value);
+  });
+  return skus.length > 0 ? skus : undefined;
+}
+
 function printResult(result: ProductResult): void {
   const label = LABEL[result.status];
   console.log(
@@ -81,16 +96,20 @@ function printSummary(report: RunReport): void {
 async function main(): Promise<void> {
   const commit = process.argv.includes('--commit');
   const limit = parseLimit();
+  const skus = parseSkus();
 
   console.log(
     `\n${BOLD}${commit ? 'Creating products' : 'Preview'}${OFF}` +
+      `${commit && skus ? ` ${DIM}(${skus.length} selected)${OFF}` : ''}` +
       `${limit ? ` ${DIM}(limited to ${limit})${OFF}` : ''}`,
   );
   if (!commit) console.log(`${DIM}Nothing will be written. Add --commit to create for real.${OFF}`);
+  if (!commit && skus) console.log(`${DIM}--sku is ignored by a preview, which checks every row.${OFF}`);
 
   const report = await run({
     commit,
     limit,
+    skus,
     onProgress: (result, done, total) => {
       process.stdout.write(`${DIM}  [${done}/${total}]${OFF} `);
       console.log(
@@ -113,6 +132,13 @@ async function main(): Promise<void> {
     `${DIM}copy inherited from ${copy.host} · ${copy.products} published products · ` +
       `${copy.stones} stones described${OFF}${coverage}\n`,
   );
+
+  if (report.selectedNotInSheet.length > 0) {
+    console.log(
+      `${YELLOW}Selected but not in the sheet:${OFF} ${report.selectedNotInSheet.join(', ')}\n` +
+        `${DIM}Nothing was created for these. Run without --commit to preview the sheet as it is now.${OFF}\n`,
+    );
+  }
 
   const interesting = report.results.filter((r) => r.status !== 'skipped');
   for (const result of interesting) printResult(result);

@@ -16,6 +16,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { run } from '../run/runner.js';
 import type { ProductResult, RunReport } from '../run/report.js';
+import { latestFinishedPreview, type ReportTiming } from '../domain/selection.js';
 import { runsDir } from '../paths.js';
 
 const RUNS_DIR = runsDir();
@@ -34,7 +35,8 @@ export interface RunState {
   heartbeat: string;
   done: number;
   total: number;
-  limit: number | null;
+  /** The Selection a commit was started with; null on a preview. */
+  skus: string[] | null;
   error: string | null;
   /** Results so far while running; the complete set once finished. */
   results: ProductResult[];
@@ -71,9 +73,53 @@ export async function isRunning(): Promise<boolean> {
   return state !== null && state.status === 'running' && !isStale(state);
 }
 
+/**
+ * Each report's timing, parsed once and remembered until its file changes. The
+ * page polls, and a report still being written changes with every product.
+ */
+const timings = new Map<string, { mtimeMs: number; timing: ReportTiming | null }>();
+
+/**
+ * When the most recent finished preview finished, read from the run reports on
+ * disk — so neither reloading the page nor restarting the app resets it.
+ */
+export async function lastPreviewAt(): Promise<string | null> {
+  let names: string[];
+  try {
+    names = await fs.readdir(RUNS_DIR);
+  } catch {
+    return null;
+  }
+
+  const found: ReportTiming[] = [];
+  // `current.json` is the page's run state, not a report.
+  for (const name of names.filter((n) => n.endsWith('.json') && n !== 'current.json')) {
+    const file = path.join(RUNS_DIR, name);
+    try {
+      const { mtimeMs } = await fs.stat(file);
+      let cached = timings.get(file);
+      if (!cached || cached.mtimeMs !== mtimeMs) {
+        const report = JSON.parse(await fs.readFile(file, 'utf8')) as Partial<RunReport>;
+        const timing =
+          report.mode === 'preview' || report.mode === 'commit'
+            ? { mode: report.mode, finishedAt: report.finishedAt ?? null }
+            : null;
+        cached = { mtimeMs, timing };
+        timings.set(file, cached);
+      }
+      if (cached.timing) found.push(cached.timing);
+    } catch {
+      // Half-written or unreadable: it tells us nothing, so it counts for nothing.
+    }
+  }
+
+  return latestFinishedPreview(found);
+}
+
 export interface StartOptions {
   commit: boolean;
-  limit: number | null;
+  /** The Selection. Required for a commit; ignored by a preview. */
+  skus: string[] | null;
 }
 
 /**
@@ -95,7 +141,7 @@ export async function startRun(options: StartOptions): Promise<RunState> {
     heartbeat: new Date().toISOString(),
     done: 0,
     total: 0,
-    limit: options.limit,
+    skus: options.commit ? options.skus : null,
     error: null,
     results: [],
     report: null,
@@ -115,7 +161,8 @@ export async function startRun(options: StartOptions): Promise<RunState> {
     try {
       const report = await run({
         commit: options.commit,
-        limit: options.limit ?? undefined,
+        // A preview ignores it; the runner sees to that.
+        skus: options.skus ?? undefined,
         onProgress: (result, done, total) => {
           if (!current) return;
           current.results.push(result);

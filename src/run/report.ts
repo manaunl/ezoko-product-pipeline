@@ -82,6 +82,12 @@ export interface RunReport {
    */
   rejectedPhotos: { name: string; reason: string }[];
   results: ProductResult[];
+  /**
+   * SKUs a commit was asked to create that no row in the sheet has — deleted
+   * or renamed since the preview they were ticked in. Nothing is created or
+   * written back for them. Always empty on a preview.
+   */
+  selectedNotInSheet: string[];
   /** Null on a preview, which writes nothing anywhere. */
   writeBack: {
     updated: number;

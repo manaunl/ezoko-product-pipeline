@@ -12,7 +12,7 @@ import '../bootstrap.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { isRunning, isStale, readState, startRun } from './state.js';
+import { isRunning, isStale, lastPreviewAt, readState, startRun } from './state.js';
 import { applyUpdate, checkForUpdate, switchToVersion } from '../update/install.js';
 import { readConfig, writeConfig } from './config.js';
 import { authUrlFor, exchangeAndSave, isSignedIn, loadAuth } from '../google/auth.js';
@@ -156,29 +156,33 @@ app.post('/api/setup/test', async (_req, res) => {
 });
 
 app.get('/api/status', async (_req, res) => {
+  // The page measures a Selection's four hours from this. The server does no
+  // age check of its own — see the page.
+  const previewAt = await lastPreviewAt();
   const state = await readState();
   if (!state) {
-    res.json({ status: 'idle' });
+    res.json({ status: 'idle', lastPreviewAt: previewAt });
     return;
   }
-  res.json({ ...state, stale: isStale(state) });
+  res.json({ ...state, stale: isStale(state), lastPreviewAt: previewAt });
 });
 
 app.post('/api/start', async (req, res) => {
   const commit = req.body?.commit === true;
-  const rawLimit = req.body?.limit;
-  const limit =
-    rawLimit === null || rawLimit === undefined || rawLimit === ''
-      ? null
-      : Number.parseInt(String(rawLimit), 10);
+  const rawSkus: unknown = req.body?.skus;
+  const skus = Array.isArray(rawSkus)
+    ? rawSkus.filter((sku): sku is string => typeof sku === 'string' && sku.trim() !== '')
+    : [];
 
-  if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
-    res.status(400).json({ error: 'The limit must be a whole number of 1 or more.' });
+  // The page only ever creates what was ticked. Without this, a commit with no
+  // SKUs would mean "everything", as it does on the command line.
+  if (commit && skus.length === 0) {
+    res.status(400).json({ error: 'Tick at least one product to create.' });
     return;
   }
 
   try {
-    const state = await startRun({ commit, limit });
+    const state = await startRun({ commit, skus });
     res.json(state);
   } catch (error: unknown) {
     res.status(409).json({
