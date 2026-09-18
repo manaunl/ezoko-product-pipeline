@@ -23,6 +23,13 @@ import { buildTags, buildTitle, formatProductName, pickTitleMeasure } from './ti
 import type { PhotoIndex, RowOutcome, RowProblem, SheetRow } from './types.js';
 
 /**
+ * The Product template every product is created with, whatever its type. The
+ * name misleads: it is the template the owner's recent towers, spheres and
+ * necklaces all use. See ADR-0008.
+ */
+export const PRODUCT_TEMPLATE = 'bracelet';
+
+/**
  * Values in PHOTO Status that mean "not finished yet".
  *
  * The rule is: any non-empty value means the photographer has marked the row
@@ -287,6 +294,7 @@ export function rowToOutcome(
       descriptionFrom: description.from,
       productType,
       tags: buildTags(stone.english, productType),
+      template: PRODUCT_TEMPLATE,
       priceHuf: price.ok ? price.value : 0,
       weight,
       height,

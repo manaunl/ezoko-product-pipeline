@@ -149,6 +149,7 @@ export async function createProduct(
       descriptionHtml: draft.descriptionHtml,
       productType: draft.productType,
       tags: draft.tags,
+      templateSuffix: draft.template,
       // Draft, always. Nothing this tool creates is ever visible to a customer
       // until a human publishes it in the admin.
       status: 'DRAFT',

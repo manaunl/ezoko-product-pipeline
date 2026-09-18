@@ -141,6 +141,25 @@ describe('the PRODUCT name, when the owner has written one', () => {
   });
 });
 
+describe('the Product template', () => {
+  it('is bracelet for every product, whatever its type or name', () => {
+    // The owner's recent towers, spheres and necklaces all use the theme's
+    // "bracelet" template despite its name. See ADR-0008.
+    const rows = [
+      row({}),
+      row({ productType: 'CARVING', productName: 'DRAGON (ON STAND)' }),
+      row({ productType: 'CARVING', productName: '' }),
+      row({ productType: 'TOWER' }),
+      row({ productType: 'PENDANT' }),
+    ];
+    for (const r of rows) {
+      const outcome = rowToOutcome(r, photos);
+      if (outcome.kind !== 'ready') throw new Error(`expected ready, got ${outcome.kind}`);
+      expect(outcome.draft.template, `${r.productType} ${r.productName}`).toBe('bracelet');
+    }
+  });
+});
+
 describe('the description, inherited from the storefront', () => {
   it('uses the published copy for the stone, verbatim', () => {
     expect(withCopy().descriptionHtml).toBe('<p>Malachite is a copper mineral.</p>');

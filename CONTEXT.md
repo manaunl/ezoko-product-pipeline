@@ -38,6 +38,12 @@ HAT`. Optional, and feeds the title only: `{Stone} {Product name} - {size}
 translated, never used to choose a description.
 _Avoid_: product title (that is the whole title, stone and size included)
 
+**Product template**:
+The theme layout a product's page is rendered with. Every product this tool
+creates uses the owner's `bracelet` template — despite its name, it is the one
+his recent towers, spheres and necklaces all use. Not chosen per row or per type.
+_Avoid_: theme, layout, template suffix (that is Shopify's field name for it)
+
 **Product Draft**:
 This tool's own fully-validated, ready-to-send representation of a row — SKU,
 title, price, photos, tags all resolved — before anything has been sent to

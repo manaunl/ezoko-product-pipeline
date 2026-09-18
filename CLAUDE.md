@@ -83,7 +83,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 171 unit tests, no credentials required
+- 172 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not
@@ -103,6 +103,12 @@ correct — Malachite comes through byte-for-byte as the owner wrote it. What ha
 **not** been done is a `--commit` with a description attached, so `productCreate`
 accepting this HTML is still unproven. First real run should be
 `--commit --limit 1` followed by a look at the product in the admin.
+
+**Product template — not verified at all.** Every product is created with the
+theme template `bracelet` (ADR-0008). The dev store's theme has no such
+template, so only the owner's store can show whether Shopify accepts it and the
+page renders. The same first `--commit --limit 1` should check the product's
+template in the admin as well as its description.
 
 Note the 70 products already on the test store were created before this existed
 and have empty bodies. They will stay that way: the tool never updates.
@@ -144,6 +150,7 @@ Don't relitigate these without asking; each was argued through.
 | Units read from the **cell**, not the header | The WIDTH header says nothing; the data says `"37 mm"` |
 | Prices are whole forints | HUF; every separator is a thousands separator |
 | Tags = lowercase stone + type | Shopify automated collections then build themselves |
+| Every product uses the **`bracelet`** template | Despite the name, it is what his recent towers, spheres and necklaces use. Fixed in code, not per type, not a sheet column, not checked against the theme. ADR-0008 |
 | Description = the shop's own published copy for that stone | It already exists — 100 of 103 agates share one body. Writing new copy would be inventing what the owner has already decided |
 | Descriptions read from the **public storefront feed**, not the Admin API | No credentials, so it is testable from any laptop and identical on the dev store. The Admin API sees drafts but could only ever be verified by the owner |
 | Read **live** every run, never cached or committed | the owner's edits take effect on the next run. Costs ~11 requests and a few seconds |

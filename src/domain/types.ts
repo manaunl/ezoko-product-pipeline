@@ -76,6 +76,8 @@ export interface ProductDraft {
   descriptionFrom: string | null;
   productType: string;
   tags: string[];
+  /** The Product template the page renders with. See ADR-0008. */
+  template: string;
   /** Whole forints. */
   priceHuf: number;
   weight: Measure | null;
