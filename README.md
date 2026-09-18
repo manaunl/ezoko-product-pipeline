@@ -127,10 +127,11 @@ from the release zip, which has a `versions/` folder and updates itself.
 
 **Preview** shows what would happen and writes nothing anywhere. Every row it
 would create then gets a checkbox, with nothing ticked; **Create selected (N)**
-creates only the ticked ones, after a confirmation. The ready rows left unticked
-are shown as *not selected*, can be ticked straight from the commit's results,
-and are left untouched in the sheet. That makes the cautious first run "tick
-one, check it in the admin, tick the rest".
+creates only the ticked ones, after a confirmation. The list stays the
+preview's, with what has been created since laid over it, so the rows left
+unticked keep everything the preview found out about them and can be ticked
+next — "tick one, check it in the admin, tick the rest". They are left
+untouched in the sheet.
 
 A commit trusts nothing from the preview: it sends only SKUs, re-reads
 everything, and creates a selected SKU only if its row is still ready and it is

@@ -16,7 +16,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { run } from '../run/runner.js';
 import type { ProductResult, RunReport } from '../run/report.js';
-import { latestFinishedPreview, type ReportTiming } from '../domain/selection.js';
+import { latestFinishedPreview, pictureSincePreview, type ReportTiming } from '../domain/selection.js';
 import { runsDir } from '../paths.js';
 
 const RUNS_DIR = runsDir();
@@ -73,47 +73,88 @@ export async function isRunning(): Promise<boolean> {
   return state !== null && state.status === 'running' && !isStale(state);
 }
 
+interface ReportSummary extends ReportTiming {
+  file: string;
+  startedAt: string;
+}
+
 /**
  * Each report's timing, parsed once and remembered until its file changes. The
  * page polls, and a report still being written changes with every product.
  */
-const timings = new Map<string, { mtimeMs: number; timing: ReportTiming | null }>();
+const summaries = new Map<string, { mtimeMs: number; summary: ReportSummary | null }>();
 
-/**
- * When the most recent finished preview finished, read from the run reports on
- * disk — so neither reloading the page nor restarting the app resets it.
- */
-export async function lastPreviewAt(): Promise<string | null> {
+async function summariseReports(): Promise<ReportSummary[]> {
   let names: string[];
   try {
     names = await fs.readdir(RUNS_DIR);
   } catch {
-    return null;
+    return [];
   }
 
-  const found: ReportTiming[] = [];
+  const found: ReportSummary[] = [];
   // `current.json` is the page's run state, not a report.
   for (const name of names.filter((n) => n.endsWith('.json') && n !== 'current.json')) {
     const file = path.join(RUNS_DIR, name);
     try {
       const { mtimeMs } = await fs.stat(file);
-      let cached = timings.get(file);
+      let cached = summaries.get(file);
       if (!cached || cached.mtimeMs !== mtimeMs) {
         const report = JSON.parse(await fs.readFile(file, 'utf8')) as Partial<RunReport>;
-        const timing =
-          report.mode === 'preview' || report.mode === 'commit'
-            ? { mode: report.mode, finishedAt: report.finishedAt ?? null }
+        const summary =
+          (report.mode === 'preview' || report.mode === 'commit') && report.startedAt
+            ? { file, mode: report.mode, startedAt: report.startedAt, finishedAt: report.finishedAt ?? null }
             : null;
-        cached = { mtimeMs, timing };
-        timings.set(file, cached);
+        cached = { mtimeMs, summary };
+        summaries.set(file, cached);
       }
-      if (cached.timing) found.push(cached.timing);
+      if (cached.summary) found.push(cached.summary);
     } catch {
       // Half-written or unreadable: it tells us nothing, so it counts for nothing.
     }
   }
+  return found;
+}
 
-  return latestFinishedPreview(found);
+export interface SincePreview {
+  /** When the most recent finished preview finished; the Selection clock. */
+  lastPreviewAt: string | null;
+  /** That preview, with every commit since laid over it. Null with no preview. */
+  results: ProductResult[] | null;
+}
+
+/**
+ * The owner's picture of the sheet: the last finished preview and what has been
+ * created from it since. Read from the run reports on disk, so neither
+ * reloading the page nor restarting the app loses it. A commit still running,
+ * or one that crashed, counts for what it did — its report is written after
+ * every product.
+ */
+export async function sincePreview(): Promise<SincePreview> {
+  const reports = await summariseReports();
+  const at = latestFinishedPreview(reports);
+  const preview = reports.find((r) => r.mode === 'preview' && r.finishedAt === at);
+  if (!at || !preview) return { lastPreviewAt: null, results: null };
+
+  const commits = reports
+    .filter((r) => r.mode === 'commit' && Date.parse(r.startedAt) >= Date.parse(at))
+    .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
+
+  const resultsOf = async (r: ReportSummary): Promise<ProductResult[]> => {
+    try {
+      return (JSON.parse(await fs.readFile(r.file, 'utf8')) as RunReport).results ?? [];
+    } catch {
+      return [];
+    }
+  };
+
+  return {
+    lastPreviewAt: at,
+    results: pictureSincePreview(
+      await resultsOf(preview),
+      await Promise.all(commits.map(resultsOf)),
+    ),
+  };
 }
 
 export interface StartOptions {

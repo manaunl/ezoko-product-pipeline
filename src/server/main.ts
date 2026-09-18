@@ -12,7 +12,7 @@ import '../bootstrap.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { isRunning, isStale, lastPreviewAt, readState, startRun } from './state.js';
+import { isRunning, isStale, readState, sincePreview, startRun } from './state.js';
 import { applyUpdate, checkForUpdate, switchToVersion } from '../update/install.js';
 import { readConfig, writeConfig } from './config.js';
 import { authUrlFor, exchangeAndSave, isSignedIn, loadAuth } from '../google/auth.js';
@@ -156,15 +156,16 @@ app.post('/api/setup/test', async (_req, res) => {
 });
 
 app.get('/api/status', async (_req, res) => {
-  // The page measures a Selection's four hours from this. The server does no
-  // age check of its own — see the page.
-  const previewAt = await lastPreviewAt();
+  // The page measures a Selection's four hours from `lastPreviewAt`, and shows
+  // `picture` — the preview with what has been created since — once no preview
+  // is running. The server does no age check of its own; see the page.
+  const { lastPreviewAt, results: picture } = await sincePreview();
   const state = await readState();
   if (!state) {
-    res.json({ status: 'idle', lastPreviewAt: previewAt });
+    res.json({ status: 'idle', lastPreviewAt, picture });
     return;
   }
-  res.json({ ...state, stale: isStale(state), lastPreviewAt: previewAt });
+  res.json({ ...state, stale: isStale(state), lastPreviewAt, picture });
 });
 
 app.post('/api/start', async (req, res) => {

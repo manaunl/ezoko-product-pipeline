@@ -169,7 +169,7 @@
   .t-would   { background: var(--accent-soft); color: var(--accent); }
   .t-partial { background: var(--warn-soft); color: var(--warn); }
   .t-failed, .t-invalid { background: var(--stop-soft); color: var(--stop); }
-  .t-exists, .t-skipped, .t-unpicked { background: var(--surface); color: var(--muted); }
+  .t-exists, .t-skipped { background: var(--surface); color: var(--muted); }
 
   /* ---------- selection ---------- */
 
@@ -238,7 +238,6 @@
     partial:        { text: 'partial',      cls: 't-partial' },
     exists:         { text: 'already there',cls: 't-exists' },
     skipped:        { text: 'not ready',    cls: 't-skipped' },
-    'not-selected': { text: 'not selected', cls: 't-unpicked' },
     invalid:        { text: 'needs fixing', cls: 't-invalid' },
     failed:         { text: 'failed',       cls: 't-failed' },
   };
@@ -248,7 +247,6 @@
     { key: 'partial',      title: 'Created, but some photos did not upload' },
     { key: 'created',      title: 'Created' },
     { key: 'would-create', title: 'Would be created' },
-    { key: 'not-selected', title: 'Ready, not selected' },
     { key: 'invalid',      title: 'Needs fixing in the spreadsheet' },
     { key: 'exists',       title: 'Already in Shopify' },
     { key: 'skipped',      title: 'Not ready yet', collapsed: true },
@@ -278,27 +276,31 @@
     return Date.now() - Date.parse(latest.lastPreviewAt) > SELECTION_WINDOW_MS;
   }
 
-  /**
-   * The group a result is shown in. Ready rows a commit wasn't asked to create
-   * come back as `skipped` with the detail "not selected" (see selection.ts) — the same status as
-   * rows that aren't ready, so the sheet leaves them alone — but on the page
-   * they are a different thing and must not be confused with them.
-   */
-  function groupOf(result) {
-    return result.status === 'skipped' && result.detail === 'not selected'
-      ? 'not-selected'
-      : result.status;
+  function busy(state) {
+    return !!state && state.status === 'running' && !state.stale;
   }
 
   /**
-   * Rows that can be ticked: what a finished preview would create — including
-   * rows whose Shopify check failed, since the commit checks again — and what a
-   * finished commit left unselected.
+   * What the list shows. While a preview runs, its progress. Otherwise the last
+   * finished preview with everything created since laid over it, which the
+   * server assembles from the run reports. A commit only looks closely at the
+   * rows it was asked to create, so showing its own results would reduce every
+   * other row to a bare "not selected" and lose what the preview found out.
+   */
+  function shown(state) {
+    if (!state) return [];
+    if (busy(state) && state.mode === 'preview') return state.results ?? [];
+    return state.picture ?? state.results ?? [];
+  }
+
+  /**
+   * Rows that can be ticked: everything in the picture that would still be
+   * created — including rows whose Shopify check failed, since the commit
+   * checks again. Nothing while a run is going.
    */
   function tickable(state) {
-    if (!state || state.status !== 'finished' || state.stale) return [];
-    return (state.results ?? []).filter((r) =>
-      state.mode === 'preview' ? r.status === 'would-create' : groupOf(r) === 'not-selected');
+    if (!state || busy(state) || !state.picture) return [];
+    return state.picture.filter((r) => r.status === 'would-create');
   }
 
   function esc(text) {
@@ -307,7 +309,7 @@
   }
 
   function renderRow(result, pick) {
-    const tag = TAG[groupOf(result)] ?? { text: result.status, cls: '' };
+    const tag = TAG[result.status] ?? { text: result.status, cls: '' };
     const bad = result.status === 'failed' || result.status === 'invalid';
     const photos = result.photos && result.status !== 'would-create'
       ? `${result.photos.ready}/${result.photos.total} photos`
@@ -337,7 +339,7 @@
 
   function renderResults(state) {
     const box = $('results');
-    const results = state && state.results;
+    const results = shown(state);
     if (!results || results.length === 0) { box.innerHTML = ''; return; }
 
     const canTick = new Set(tickable(state));
@@ -353,7 +355,7 @@
     </div>`;
 
     box.innerHTML = warning + GROUPS.map((group) => {
-      const rows = results.filter((r) => groupOf(r) === group.key);
+      const rows = results.filter((r) => r.status === group.key);
       if (rows.length === 0) return '';
       const heading = `${group.title} — ${rows.length}`;
       const body = `<div class="rows">${
@@ -448,15 +450,16 @@
     }
 
     const counts = {};
-    for (const result of state.results ?? []) {
-      counts[groupOf(result)] = (counts[groupOf(result)] ?? 0) + 1;
+    for (const result of shown(state)) {
+      counts[result.status] = (counts[result.status] ?? 0) + 1;
     }
     const chips = Object.entries(counts)
       .map(([key, n]) => `<span class="count"><b>${n}</b> ${esc(TAG[key]?.text ?? key)}</span>`)
       .join('');
 
     const preview = state.mode === 'preview';
-    const trouble = (counts.failed ?? 0) + (counts.partial ?? 0) > 0;
+    // About this run alone; the chips above describe the whole picture.
+    const trouble = (state.results ?? []).some((r) => r.status === 'failed' || r.status === 'partial');
     const tone = trouble ? 'warn' : preview ? 'info' : 'good';
     const headline = preview
       ? 'Preview finished — nothing was written'

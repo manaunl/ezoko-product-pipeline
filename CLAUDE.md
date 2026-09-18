@@ -35,8 +35,10 @@ update by itself.
   artifacts
 - **Local web page** (`npm start`, or double-click `start.command`) — a Preview
   button, then a checkbox on every row it would create (nothing ticked),
-  **Select all** and **Create selected (N)**; ready rows left unticked show as
-  *not selected* and can be ticked from the commit's results. Ticking is allowed
+  **Select all** and **Create selected (N)**. After a commit the list is still
+  the last preview, with everything created since laid over it (assembled from
+  the run reports), so unticked rows keep what the preview said and can be
+  ticked next. Ticking is allowed
   for four hours after the last finished preview (read from the run reports, so
   a reload or restart keeps it, a commit doesn't extend it; page-only, not the
   CLI). The server refuses a commit with no SKUs. Background runs with file-based
@@ -90,7 +92,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 185 unit tests, no credentials required
+- 192 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not

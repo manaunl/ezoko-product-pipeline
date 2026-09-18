@@ -8,6 +8,20 @@
 
 import { normaliseSku } from './filenames.js';
 
+/** The detail on a ready row a commit wasn't asked to create. */
+export const NOT_SELECTED = 'not selected';
+
+const limitedTo = (limit: number | undefined) =>
+  `not attempted — the run was limited to ${limit} products`;
+
+/** A ready row this run left alone: not selected, or past the limit. */
+export function wasNotAttempted(result: { status: string; detail?: string }): boolean {
+  return (
+    result.status === 'skipped' &&
+    (result.detail === NOT_SELECTED || (result.detail ?? '').startsWith('not attempted — '))
+  );
+}
+
 /** A creatable row, reduced to what the choice looks at. */
 export interface Candidate {
   rowNumber: number;
@@ -56,8 +70,7 @@ export function chooseRowsToAttempt<T extends Candidate>(
 
   for (const row of creatable) {
     if (selection && !selection.has(row.draft.sku)) {
-      // The page tells these rows apart from unready ones by this exact text.
-      notAttempted.push({ ...row, reason: 'not selected' });
+      notAttempted.push({ ...row, reason: NOT_SELECTED });
     } else {
       selected.push(row);
     }
@@ -67,7 +80,7 @@ export function chooseRowsToAttempt<T extends Candidate>(
   for (const row of selected.slice(attempt.length)) {
     notAttempted.push({
       ...row,
-      reason: `not attempted — the run was limited to ${options.limit} products`,
+      reason: limitedTo(options.limit),
     });
   }
   notAttempted.sort((a, b) => a.rowNumber - b.rowNumber);
@@ -97,4 +110,43 @@ export function latestFinishedPreview(reports: ReportTiming[]): string | null {
     }
   }
   return latest;
+}
+
+/** The part of a result the picture needs. */
+export interface ShownResult {
+  rowNumber: number;
+  sku: string;
+  status: string;
+  detail?: string;
+}
+
+/**
+ * What the page shows once commits have followed a preview: the preview, with
+ * what each commit actually did laid over it, in the order they ran.
+ *
+ * A commit only looks closely at the rows it was asked to create. Everything
+ * else comes back as a bare "not selected" — no warnings, no photo count, and
+ * no word on whether it is already in Shopify — so for those rows the preview
+ * is still the better account, and is kept. Anything a commit did report about
+ * a row (created, failed, now needs fixing) is newer, and replaces it.
+ *
+ * A row a commit found that the preview never showed, and left alone, is left
+ * out: it was never on the owner's screen to be chosen.
+ */
+export function pictureSincePreview<T extends ShownResult>(preview: T[], commits: T[][]): T[] {
+  // By SKU, since a row can move between runs. A SKU on two rows has two
+  // results, so each key holds a list.
+  const key = (r: T) => normaliseSku(r.sku) || `row ${r.rowNumber}`;
+  const byKey = new Map<string, T[]>();
+  const add = (into: Map<string, T[]>, r: T) => into.set(key(r), [...(into.get(key(r)) ?? []), r]);
+
+  for (const r of preview) add(byKey, r);
+
+  for (const commit of commits) {
+    const reported = new Map<string, T[]>();
+    for (const r of commit) if (!wasNotAttempted(r)) add(reported, r);
+    for (const [k, results] of reported) byKey.set(k, results);
+  }
+
+  return [...byKey.values()].flat().sort((a, b) => a.rowNumber - b.rowNumber);
 }

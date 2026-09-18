@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { chooseRowsToAttempt, latestFinishedPreview } from '../src/domain/selection.js';
+import {
+  chooseRowsToAttempt,
+  latestFinishedPreview,
+  pictureSincePreview,
+  type ShownResult,
+} from '../src/domain/selection.js';
 
 /** A creatable row, reduced to what the choice looks at. */
 const row = (rowNumber: number, sku: string) => ({ rowNumber, draft: { sku } });
@@ -122,5 +127,85 @@ describe('the latest finished preview', () => {
         { mode: 'preview', finishedAt: null },
       ]),
     ).toBe('2026-09-18T09:00:00.000Z');
+  });
+});
+
+describe('the picture since the last preview', () => {
+  type Shown = ShownResult & { warnings?: string[] };
+  const wouldCreate = (rowNumber: number, sku: string, warnings: string[] = []): Shown => ({
+    rowNumber,
+    sku,
+    status: 'would-create' as const,
+    warnings,
+  });
+  const preview: Shown[] = [
+    wouldCreate(2, 'SP-190-A', ['no published copy for Pallasit']),
+    wouldCreate(3, 'SP-190-B'),
+    { rowNumber: 4, sku: 'SP-190-C', status: 'exists' as const },
+  ];
+
+  it('is the preview itself when nothing has been committed since', () => {
+    expect(pictureSincePreview(preview, [])).toEqual(preview);
+  });
+
+  it('shows what a commit did, and keeps what the preview said about rows it was not asked to create', () => {
+    const commit = [
+      { rowNumber: 2, sku: 'SP-190-A', status: 'skipped' as const, detail: 'not selected' },
+      { rowNumber: 3, sku: 'SP-190-B', status: 'created' as const },
+      { rowNumber: 4, sku: 'SP-190-C', status: 'skipped' as const, detail: 'not selected' },
+    ];
+
+    expect(pictureSincePreview(preview, [commit])).toEqual([preview[0], commit[1], preview[2]]);
+  });
+
+  it('keeps a product an earlier commit created when a later commit did not select it', () => {
+    const first = [{ rowNumber: 3, sku: 'SP-190-B', status: 'created' as const }];
+    const second = [
+      { rowNumber: 2, sku: 'SP-190-A', status: 'created' as const },
+      { rowNumber: 3, sku: 'SP-190-B', status: 'skipped' as const, detail: 'not selected' },
+    ];
+
+    expect(pictureSincePreview(preview, [first, second]).map((r) => r.status)).toEqual([
+      'created',
+      'created',
+      'exists',
+    ]);
+  });
+
+  it('shows a row a commit found needs fixing now, even though it was not selected', () => {
+    const commit = [
+      { rowNumber: 2, sku: 'SP-190-A', status: 'invalid' as const, detail: 'price "?5" is not a number' },
+    ];
+
+    expect(pictureSincePreview(preview, [commit])[0]).toEqual(commit[0]);
+  });
+
+  it('keeps the preview for a row a commit left out because of its limit', () => {
+    const commit = [
+      {
+        rowNumber: 2,
+        sku: 'SP-190-A',
+        status: 'skipped' as const,
+        detail: 'not attempted — the run was limited to 1 products',
+      },
+    ];
+
+    expect(pictureSincePreview(preview, [commit])[0]).toEqual(preview[0]);
+  });
+
+  it('leaves out a row added after the preview that the commit left alone', () => {
+    const commit = [{ rowNumber: 9, sku: 'TW-012', status: 'skipped' as const, detail: 'not selected' }];
+
+    expect(pictureSincePreview(preview, [commit])).toEqual(preview);
+  });
+
+  it('matches a row that moved, by SKU', () => {
+    const commit = [{ rowNumber: 7, sku: 'sp-190-b', status: 'created' as const }];
+
+    expect(pictureSincePreview(preview, [commit]).map((r) => [r.rowNumber, r.status])).toEqual([
+      [2, 'would-create'],
+      [4, 'exists'],
+      [7, 'created'],
+    ]);
   });
 });
