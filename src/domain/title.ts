@@ -3,8 +3,9 @@
  *
  * Shape: `{Stone} {Piece} - {size} {weight}`, e.g. "Malachite Sphere - 38 mm
  * 110 gr". The piece is the owner's PRODUCT name when he has written one
- * ("Dragon (on Stand)"), and the product type otherwise. The owner asked for the weight in the title: for a unique physical
- * piece, size and weight together are what a buyer is actually choosing between.
+ * ("Dragon (on Stand)"), and the product type otherwise. The owner asked for
+ * the weight in the title: for a unique physical piece, size and weight
+ * together are what a buyer is actually choosing between.
  *
  * We originally decided to always use height. The real sheet disproved that:
  * spheres record only a width, in millimetres, and would have ended up with no

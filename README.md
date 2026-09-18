@@ -236,7 +236,7 @@ npm run build                               # the release tarball and installer 
 npm run smoke                               # unpack it and start it, as the owner's Mac will
 npm run test:launcher                       # start.command, including a bad update
 npm run test:update                         # updating, against a fake GitHub on localhost
-npm test                                    # 158 tests, no credentials needed
+npm test                                    # 171 tests, no credentials needed
 ```
 
 ---

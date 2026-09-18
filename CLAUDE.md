@@ -83,7 +83,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 158 unit tests, no credentials required
+- 171 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not
@@ -212,7 +212,7 @@ match on a trimmed lowercase prefix — never by position.
 | Shape in the data | Handling |
 |---|---|
 | `"?"` in `PRICE`, `STONE Name` or `PRODUCT name` | Placeholder for "not decided". Row is **skipped**, not failed |
-| `"?"` beside other text: `"BRONZE ?"`, in `STONE Name` or `PRODUCT name` | A half-made decision, not a placeholder. **Needs fixing** — flagged even before the price is set, never created |
+| `"?"` beside other text: `"BRONZE ?"`, in `STONE Name` or `PRODUCT name` | A half-made decision, not a placeholder. **Invalid** (`NEEDS FIXING` in the sheet) — flagged even before the price is set, never created |
 | Dimensions as ranges: `"5-6 cm"`, `"2,5-3,5 cm"` | Both ends kept; title uses the upper bound |
 | `"17 cm (box)"` | Note stripped for parsing, kept for display |
 | Range SKUs: `CA-738-A1-A11` | **Refused** — one row covering 11 pieces with one price. The owner must split them |

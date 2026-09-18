@@ -115,6 +115,7 @@ describe('the PRODUCT name, when the owner has written one', () => {
       'DRAGONFLY (ON STAND)': 'Dragonfly (on Stand)',
       'BUTTERFLY (ON SPRING)': 'Butterfly (on Spring)',
       'CAT HEAD (on a string)': 'Cat Head (on a String)',
+      'DOG HEAD (on a string)': 'Dog Head (on a String)',
       'MOTHER WITH CHILD': 'Mother with Child',
       'CAT ON TOMBSTONE': 'Cat on Tombstone',
       'rotating glass tumbler': 'Rotating Glass Tumbler',

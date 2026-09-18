@@ -27,7 +27,9 @@ describe('reading the PRODUCT name column', () => {
   it('finds it wherever it sits', () => {
     const moved = [...HEADER.slice(0, 1), ...HEADER.slice(2), 'Product Name'];
     const row = [...DRAGON.slice(0, 1), ...DRAGON.slice(2), 'BAT'];
-    expect(toRows([moved, row]).rows[0]?.productName).toBe('BAT');
+    const { rows } = toRows([moved, row]);
+    expect(rows[0]?.productName).toBe('BAT');
+    expect(rows[0]?.productType).toBe('CARVING');
   });
 
   it('is optional: a sheet without it reads as every name empty', () => {

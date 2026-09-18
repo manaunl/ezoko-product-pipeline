@@ -89,10 +89,6 @@ function isHalfDecided(raw: string): boolean {
   return !isBlank(raw) && raw.includes('?');
 }
 
-function halfDecided(label: string, raw: string): string {
-  return `${label} "${raw.trim()}" contains a question mark — decide the name, then run again`;
-}
-
 /** Optional measurement: blank is fine, malformed is not. */
 function optional(
   raw: string,
@@ -174,6 +170,13 @@ export function rowToOutcome(
     sku: displaySku || `(row ${rowNumber})`,
     problems: [{ field, message }],
   });
+  const refuseHalfDecided = (label: string, raw: string): RowOutcome | null =>
+    isHalfDecided(raw)
+      ? invalid(
+          label,
+          `${label} "${raw.trim()}" contains a question mark — decide the name, then run again`,
+        )
+      : null;
   const skip = (reason: string): RowOutcome => ({
     kind: 'skipped',
     rowNumber,
@@ -208,16 +211,15 @@ export function rowToOutcome(
   // A "?" beside other text ("BRONZE ?") is a decision half made. It is not a
   // placeholder, so it would otherwise reach a title that can never be renamed.
   // Checked before the price so it is flagged while the row is being filled in.
-  if (isHalfDecided(row.stoneName)) {
-    return invalid('STONE Name', halfDecided('STONE Name', row.stoneName));
-  }
+  const stoneHalfDecided = refuseHalfDecided('STONE Name', row.stoneName);
+  if (stoneHalfDecided) return stoneHalfDecided;
 
-  // PRODUCT name is optional, so empty means "use the type". A bare "?" is
-  // different: he has not decided, and the type would be a guess.
+  // PRODUCT name is optional, so empty (or "-") means "use the type". A bare
+  // "?" is the one placeholder that differs: he has not decided, and the type
+  // would be a guess — so here it cannot go through isBlank with the others.
   if (row.productName.trim() === '?') return skip('PRODUCT name not decided yet');
-  if (isHalfDecided(row.productName)) {
-    return invalid('PRODUCT name', halfDecided('PRODUCT name', row.productName));
-  }
+  const nameHalfDecided = refuseHalfDecided('PRODUCT name', row.productName);
+  if (nameHalfDecided) return nameHalfDecided;
 
   if (isBlank(row.price)) return skip('PRICE not set yet');
 
