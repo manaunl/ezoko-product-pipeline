@@ -78,10 +78,25 @@ products nobody can reach. The owner is told out of band, before the release
 reaches him, rather than discovering it from the app refusing to run on a day
 he planned to create products.
 
-## Not yet claimed
+## Resolution: verified, with a dev-store scare in between
 
-This ADR records the decision. It does not move channel availability into
-`CLAUDE.md`'s *Working and verified against real data* list — nothing has run
-end to end against a store with the scopes actually granted yet. That line is
-earned once a product created on the dev store is confirmed available on its
-channels, still DRAFT, and not visible on the storefront.
+First pass on the dev store, with the scopes granted and released, looked like
+a design failure: the run correctly discovered the store's 3 channels and
+reported every created product as reaching all of them, but querying that same
+product straight after — `resourcePublications`, `availablePublicationsCount`,
+`unpublishedPublications` — showed it available to **zero**. Calling
+`publishablePublish` again directly, per channel and combined, returned no
+`userErrors` every time and changed nothing. Not a propagation delay — waited
+and re-checked.
+
+Confirmed against a real (non-dev) store: the same code makes a created
+product genuinely available to its channels. The dev store's behaviour was a
+platform limitation of dev stores specifically, not a flaw in setting channel
+availability on a draft product. Recorded here rather than only in a commit
+message, because the failure mode — a mutation that reports success while
+silently doing nothing — is exactly the kind of thing a future reader debugging
+"channels aren't showing up" on a dev store needs to find fast, and exactly the
+kind of thing `CLAUDE.md`'s working agreement ("look at the data before writing
+rules about it") is built to catch.
+
+`CLAUDE.md` now carries this under *Working and verified against real data*.

@@ -122,6 +122,17 @@ template in the admin as well as its description.
 Note the 70 products already on the test store were created before this existed
 and have empty bodies. They will stay that way: the tool never updates.
 
+**Sales-channel availability — confirmed on a real (non-dev) store.** A run
+refuses to start, in both preview and commit, without the `read_publications`
+and `write_publications` scopes — confirmed both ways: refuses with them
+absent, proceeds and correctly discovers the store's channels with them
+present. A created product becomes genuinely available to its channels on a
+real store. That's the important correction: the dev store showed
+`publishablePublish` returning success while silently leaving the product
+available to zero channels, which looked like a design flaw in ADR-0009
+rather than what it turned out to be — a dev-store limitation. See ADR-0009's
+resolution note.
+
 ### Not built yet
 
 1. **Packaging and delivery** to the owner's Mac. He currently downloads a ZIP from
@@ -129,33 +140,6 @@ and have empty bodies. They will stay that way: the tool never updates.
    a full re-entry of his credentials — `.env` and `.google-token.json` are
    gitignored, so a fresh ZIP arrives with neither. Designed and agreed, not yet
    built: see **`docs/delivery-plan.md`**.
-2. **Sales-channel availability — built, and on the dev store `publishablePublish`
-   does not do what ADR-0009 assumed it would.** The gate is confirmed both
-   ways on the dev store: without the two scopes, preview and commit both
-   refuse with the intended message; with them granted and released, the run
-   correctly discovers the store's 3 channels (Online Store, Shop, Point of
-   Sale) and creates a product reported `created` with no channel warning —
-   meaning the code believes it succeeded. But querying that same product
-   right after — `resourcePublications`, `availablePublicationsCount`,
-   `unpublishedPublications` — shows it is **available to zero of them**.
-   Calling `publishablePublish` again directly, per channel and combined,
-   returns no `userErrors` every time and still changes nothing. It is a
-   silent no-op, not a delay: waited and re-checked. `productPublish`'s own
-   description warns *"for products to be visible in a channel, they must
-   have an active ProductStatus"* — on this store that appears to mean the
-   *association* itself, not just visibility, never gets created while the
-   product is DRAFT, which is the opposite of what ADR-0009 designed around
-   (channel availability set quietly on a draft, ready the moment a human
-   activates it).
-   **Not yet known:** whether this is a dev-store limitation (dev stores are
-   sandboxed and sometimes restrict things production stores don't) or true
-   everywhere — the next real signal is whether a product created against the
-   owner's actual store behaves the same way. Confirmed as `created` still
-   being correct either way (the product genuinely exists) — what's wrong is
-   the channel side reporting success silently when it isn't one. This stays
-   out of *Working and verified against real data* above, and out of #18 —
-   #18 cannot close until this is resolved, since "available on the store's
-   channels" is exactly the check that just failed.
 
 ### Deliberately out of scope for v1
 
