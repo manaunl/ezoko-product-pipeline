@@ -92,7 +92,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 192 unit tests, no credentials required
+- 206 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not
@@ -129,16 +129,32 @@ and have empty bodies. They will stay that way: the tool never updates.
    a full re-entry of his credentials — `.env` and `.google-token.json` are
    gitignored, so a fresh ZIP arrives with neither. Designed and agreed, not yet
    built: see **`docs/delivery-plan.md`**.
+2. **Sales-channel availability — built, not yet verified against a real
+   store.** Every created product is made available to all of the store's
+   sales channels as it is created; a run refuses to start (preview and
+   commit alike) if the app lacks the two scopes this needs. Wired end to end,
+   covered by 14 domain tests, and the *reading* half is confirmed live against
+   the dev store: without `read_publications` it fails with exactly the
+   message the gate expects. What has **not** happened is granting the scopes
+   and confirming, in the admin, that a product actually lands on the dev
+   store's channels — that needs the two scopes added to the app in
+   [dev.shopify.com/dashboard](https://dev.shopify.com/dashboard) and the app
+   version **released**, which only whoever holds that dashboard can do. See
+   ADR-0009. Until that verification happens, this stays out of *Working and
+   verified against real data* above.
 
 ### Deliberately out of scope for v1
 
 Hosted deployment · repairing missing photos on a re-run (partials are
-*reported*, not repaired) · cost-based rate-limit throttling · sales-channel
-publication · barcode, SEO, compare-at price, cost · theme work to display
-metafields · dimension metafields · Hungarian storefront (the owner presses the
-Translate & Adapt button himself) · multiple variants or locations ·
-LLM-written descriptions (they are *inherited* from the shop instead) ·
-backfilling descriptions onto products already created (there is no update path)
+*reported*, not repaired) · cost-based rate-limit throttling · choosing which
+channels get which product, or removing a product from one, or scheduled
+publishing (every product goes to every channel that exists, ADR-0009) ·
+barcode, SEO, compare-at price, cost · theme work to display metafields ·
+dimension metafields · Hungarian storefront (the owner presses the Translate &
+Adapt button himself) · multiple variants or locations · LLM-written
+descriptions (they are *inherited* from the shop instead) · backfilling
+descriptions or channel availability onto products already created (there is
+no update path)
 
 ---
 
@@ -168,6 +184,7 @@ Don't relitigate these without asking; each was argued through.
 | Most-used body wins; a tie goes to the longest, and is reported | Frequency is evidence of what the owner settled on. Anything cleverer is us overruling him |
 | No spec line in the description | None of his 2,550 products has one, and the title already carries a size. The trade: width and depth now appear nowhere for a carving |
 | Report is a **data structure** | Console renders it now, the web page later |
+| Every created product is made available to **all** of the store's sales channels, discovered fresh each run | Backfilling six ticks per product by hand is the largest manual step left. Channels are never listed in code so a new one needs no release. A run refuses outright if the two scopes are missing, in both preview and commit — the alternative is drafts nobody can reach and a run that claims success. ADR-0009 |
 | Rejected photos reported only for SKUs **in the sheet** | The folder holds photos for 4,449 SKUs against a 144-row sheet; reporting all of them meant 1,020 red lines about pieces nobody asked about, which made a healthy run look broken |
 | Node + TypeScript | Compile-time safety matters more than usual when you can't test against prod |
 

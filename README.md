@@ -75,7 +75,7 @@ secret for a 24-hour token, which this tool refreshes automatically.
 1. [dev.shopify.com/dashboard](https://dev.shopify.com/dashboard) → create an app
 2. Configure access scopes on the app version and **release** it:
    `read_products`, `write_products`, `read_inventory`, `write_inventory`,
-   `read_locations`
+   `read_locations`, `read_publications`, `write_publications`
 3. App → **Home** → **Install app** → choose the store
 4. Copy the **Client ID** and **Client secret** into `.env`
 
@@ -254,7 +254,7 @@ npm run build                               # the release tarball and installer 
 npm run smoke                               # unpack it and start it, as the owner's Mac will
 npm run test:launcher                       # start.command, including a bad update
 npm run test:update                         # updating, against a fake GitHub on localhost
-npm test                                    # 171 tests, no credentials needed
+npm test                                    # 206 tests, no credentials needed
 ```
 
 ---
@@ -280,7 +280,26 @@ ezoko.shop/en ─┘
    - **invalid** — something a human must fix. Reported, never guessed at.
 6. **Create**, for each ready row: check the SKU doesn't already exist → upload
    photos → `productCreate` as **draft** → set SKU/price/weight on the default
-   variant → set inventory to 1 → wait for image processing to finish.
+   variant → set inventory to 1 → wait for image processing to finish → make it
+   available to every one of the store's sales channels.
+
+### Sales channels
+
+Every product is made available to **all** of the store's sales channels as it
+is created — set last, after the photos, price, weight and stock are all in
+place. Nothing becomes visible to anyone: the product is still created as
+**DRAFT**, and a draft is invisible on every channel regardless of its channel
+availability. What changes is that when the owner flips it to Active, it's
+immediately everywhere instead of needing six ticks first.
+
+The channels are discovered from the store fresh every run, never configured —
+a channel added next year needs no code change. This needs two access scopes,
+`read_publications` and `write_publications`; a run **refuses to start**,
+in both preview and commit, if the store doesn't have them yet. A product that
+was created but could not be made available to every channel is still reported
+as `created`, with a warning naming exactly the channels it missed — never as a
+failure, because the product genuinely exists. See ADR-0009 and
+`CONTEXT.md`'s **channel availability**.
 
 ### Descriptions
 

@@ -125,7 +125,8 @@
     <ol class="how">
       <li>Go to <a href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> and create an app.</li>
       <li>Set its access scopes to <code>read_products</code>, <code>write_products</code>,
-          <code>read_inventory</code>, <code>write_inventory</code>, <code>read_locations</code> —
+          <code>read_inventory</code>, <code>write_inventory</code>, <code>read_locations</code>,
+          <code>read_publications</code>, <code>write_publications</code> —
           then <strong>release</strong> that version. Skipping the release is the most common mistake.</li>
       <li>On the app's <strong>Home</strong> page, choose <strong>Install app</strong> and pick your store.</li>
       <li>Copy the <strong>Client ID</strong> and <strong>Client secret</strong> into the boxes below.</li>
@@ -298,7 +299,7 @@
     try {
       const outcome = await (await fetch('/api/setup/test', { method: 'POST' })).json();
       const labels = { shopify: 'Shopify', sheet: 'Spreadsheet', drive: 'Photos',
-                       storefront: 'Descriptions' };
+                       storefront: 'Descriptions', channels: 'Sales channels' };
       $('results').innerHTML = Object.entries(labels).map(([key, label]) => {
         const item = outcome[key] ?? { ok: false, message: 'no answer' };
         return `<div class="${item.ok ? 'ok' : 'bad'}"><b>${esc(label)}</b><span>${esc(item.message)}</span></div>`;

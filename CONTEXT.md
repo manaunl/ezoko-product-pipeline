@@ -44,6 +44,22 @@ creates uses the owner's `bracelet` template — despite its name, it is the one
 his recent towers, spheres and necklaces all use. Not chosen per row or per type.
 _Avoid_: theme, layout, template suffix (that is Shopify's field name for it)
 
+**Channel availability**:
+The set of Shopify sales channels a product is made available to, assigned
+once at creation from every channel the store has, and never revisited. It
+never makes a product visible: a **Shopify draft status** product is invisible
+on every channel regardless of its channel availability. What it changes is
+what happens the moment the owner later flips a product to Active. Discovered
+fresh from the store each run, never configured. See ADR-0009.
+_Avoid_: publishing (see **Publish**, below, which already means something else
+in this codebase) — the only thing this codebase calls "publishing" is
+Shopify's own `publishablePublish` mutation name.
+
+**Publish** (description sense):
+The owner's own act of putting copy live on `ezoko.shop`, which is where every
+description this tool inherits comes from (ADR-0004). Unrelated to **Channel
+availability** above, which never makes anything visible to a customer.
+
 **Product Draft**:
 This tool's own fully-validated, ready-to-send representation of a row — SKU,
 title, price, photos, tags all resolved — before anything has been sent to

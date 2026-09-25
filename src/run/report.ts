@@ -73,6 +73,19 @@ export interface RunReport {
     stonesMatched: number;
   };
   /**
+   * The store's sales channels, discovered fresh at the start of the run, and
+   * how many created products reached every one of them. See ADR-0009.
+   *
+   * `fullyAvailable` only means something for a commit — a preview never
+   * calls `publishablePublish`, so it stays 0.
+   */
+  channels: {
+    names: string[];
+    /** The one-line summary `decideChannels` built for this run's header. */
+    summary: string;
+    fullyAvailable: number;
+  };
+  /**
    * Photo files we refused, with the reason.
    *
    * Only files whose SKU appears in the sheet. The owner's folder holds photos for

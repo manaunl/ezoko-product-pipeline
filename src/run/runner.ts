@@ -6,6 +6,7 @@
  * ordering, simple rate-limit behaviour and a readable report.
  */
 
+import { decideChannels, reachedAllChannels } from '../domain/channels.js';
 import { loadDescriptionAliases } from '../domain/descriptions.js';
 import { claimedSku, indexPhotos, normaliseSku } from '../domain/filenames.js';
 import { findDuplicateSkus, rowToOutcome } from '../domain/mapping.js';
@@ -16,7 +17,7 @@ import { readSheet } from '../google/sheets.js';
 import { fetchDescriptionCatalogue } from '../storefront/feed.js';
 import { writeResults, type WriteBackResult } from '../sheets/writeback.js';
 import { storeDomain } from '../shopify/client.js';
-import { findVariantBySku, primaryLocationId } from '../shopify/products.js';
+import { findVariantBySku, primaryLocationId, probeChannels } from '../shopify/products.js';
 import { adminUrl, createOne } from './create.js';
 import type { ProductDraft } from '../domain/types.js';
 import { ReportWriter, type ProductResult, type RunReport } from './report.js';
@@ -67,6 +68,13 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
   const descriptions = await fetchDescriptionCatalogue();
   const descriptionAliases = loadDescriptionAliases();
 
+  // A fourth precondition, and the only one that can refuse the whole run
+  // rather than just reporting a gap: creating products nobody can reach
+  // because a scope is missing would look exactly like a healthy run. See
+  // ADR-0009.
+  const channelsDecision = decideChannels(await probeChannels());
+  if (!channelsDecision.proceed) throw new Error(channelsDecision.message);
+
   // Only rejections about a SKU the sheet actually asks about. The folder holds
   // photos for thousands of other pieces, and their naming problems are not
   // this run's business.
@@ -91,6 +99,12 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
       // Filled in below, once the rows have been resolved.
       stonesWanted: 0,
       stonesMatched: 0,
+    },
+    channels: {
+      names: channelsDecision.channels.map((channel) => channel.name),
+      summary: channelsDecision.message,
+      // Filled in below, once every product has been attempted.
+      fullyAvailable: 0,
     },
     rejectedPhotos: photos.rejected
       .filter((r) => sheetSkus.has(claimedSku(r.file.name)))
@@ -229,7 +243,7 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
     let done = 0;
 
     for (const { rowNumber, draft } of attempt) {
-      const result = await createOne(auth, draft, rowNumber, locationId);
+      const result = await createOne(auth, draft, rowNumber, locationId, channelsDecision.channels);
       report.results.push(result);
       done += 1;
       options.onProgress?.(result, done, attempt.length);
@@ -259,6 +273,13 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
     });
   }
   report.results.sort((a, b) => a.rowNumber - b.rowNumber);
+
+  // Only meaningful for a commit — a preview never calls `publishablePublish`.
+  if (commit) {
+    report.channels.fullyAvailable = report.results.filter(
+      (r) => (r.status === 'created' || r.status === 'partial') && reachedAllChannels(r.warnings),
+    ).length;
+  }
 
   // Only a commit run writes to the sheet. A preview writes nothing anywhere,
   // and that promise is worth more than the convenience of a preview column.

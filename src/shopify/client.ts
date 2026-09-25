@@ -149,8 +149,10 @@ export async function shopifyGraphql<T>(
     throw new ShopifyError(
       `Shopify rejected the request (HTTP ${response.status}) for ${domain}.\n` +
         `Shopify said: ${text.slice(0, 300) || '(empty response)'}\n` +
-        'Check SHOPIFY_ACCESS_TOKEN in .env, that the custom app is installed, and that it has ' +
-        'the scopes it needs.',
+        'Check SHOPIFY_ACCESS_TOKEN in .env, that the custom app is installed, and that its ' +
+        'access scopes — read_products, write_products, read_inventory, write_inventory, ' +
+        'read_locations, read_publications, write_publications — are set and the app version ' +
+        'is released.',
     );
   }
   if (response.status === 404) {

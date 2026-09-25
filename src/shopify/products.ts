@@ -16,6 +16,7 @@
 
 import { createHash } from 'node:crypto';
 import { shopifyGraphql } from './client.js';
+import { classifyChannelsError, type Channel, type ChannelsProbe } from '../domain/channels.js';
 import type { Measure } from '../domain/measure.js';
 import { toGrams } from '../domain/measure.js';
 import type { ProductDraft } from '../domain/types.js';
@@ -279,4 +280,97 @@ export async function primaryLocationId(): Promise<string> {
   const location = data.locations.nodes[0];
   if (!location) throw new Error('the store has no active location to hold inventory');
   return location.id;
+}
+
+const PUBLICATIONS = `
+  query publications($first: Int!) {
+    publications(first: $first) {
+      nodes {
+        id
+        channels(first: 5) { nodes { name } }
+      }
+    }
+  }
+`;
+
+/**
+ * The store's sales channels, discovered fresh every run — never configured,
+ * so a seventh channel added next year needs no code change.
+ *
+ * Requires the `read_publications` scope. Verified against the live dev
+ * store: without it, this throws with a message naming that scope exactly,
+ * which is what `classifyChannelsError` in `domain/channels.ts` recognises.
+ *
+ * A Publication's own display name lives on the Channel(s) it wraps, not on
+ * the Publication itself — for the ordinary sales-channel case that is one
+ * channel per publication, so its name is used directly.
+ */
+export async function listPublications(): Promise<Channel[]> {
+  const { data } = await shopifyGraphql<{
+    publications: { nodes: { id: string; channels: { nodes: { name: string }[] } }[] };
+  }>(PUBLICATIONS, { first: 50 });
+
+  return data.publications.nodes.map((node) => ({
+    id: node.id,
+    name: node.channels.nodes.map((channel) => channel.name).join(', ') || node.id,
+  }));
+}
+
+/**
+ * `listPublications`, with the failure already classified — shared by the
+ * run's preflight gate and the setup page's connection test, so telling a
+ * missing scope apart from anything else Shopify could say only happens once.
+ */
+export async function probeChannels(): Promise<ChannelsProbe> {
+  try {
+    return { kind: 'ok', channels: await listPublications() };
+  } catch (error: unknown) {
+    return classifyChannelsError(error);
+  }
+}
+
+const PUBLISHABLE_PUBLISH = `
+  mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+    publishablePublish(id: $id, input: $input) {
+      userErrors { field message }
+    }
+  }
+`;
+
+/** Channels a `publishablePublish` call could not reach, and why. */
+export interface ChannelPublishOutcome {
+  missed: { channel: Channel; message: string }[];
+}
+
+/**
+ * Makes a product available to every given channel, in one call. Requires the
+ * `write_publications` scope.
+ *
+ * `userErrors` names a failing entry by its index in `input` (`field: ["input",
+ * "2"]`), which is how a partial failure is turned back into the channels it
+ * actually names rather than a bare list of messages.
+ */
+export async function publishToChannels(
+  productId: string,
+  channels: Channel[],
+): Promise<ChannelPublishOutcome> {
+  if (channels.length === 0) return { missed: [] };
+
+  const { data } = await shopifyGraphql<{
+    publishablePublish: { userErrors: { field?: string[] | null; message: string }[] };
+  }>(PUBLISHABLE_PUBLISH, {
+    id: productId,
+    input: channels.map((channel) => ({ publicationId: channel.id })),
+  });
+
+  const missed = data.publishablePublish.userErrors.map((error) => {
+    const channel = channels[Number(error.field?.[1])];
+    // Not verified against real data — no store has returned a partial
+    // failure here yet. If Shopify's index ever doesn't line up with `input`,
+    // this throws, and the caller in `run/create.ts` already treats any
+    // failure here as every channel missed rather than trusting a guess.
+    if (!channel) throw new Error(`publishablePublish named a channel we didn't ask for: ${error.message}`);
+    return { channel, message: error.message };
+  });
+  return { missed };
 }

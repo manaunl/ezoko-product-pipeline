@@ -133,6 +133,11 @@ async function main(): Promise<void> {
       `${copy.stones} stones described${OFF}${coverage}\n`,
   );
 
+  console.log(
+    `${report.channels.names.length > 0 ? DIM : YELLOW}${report.channels.summary}` +
+      `${commit ? ` · ${report.channels.fullyAvailable} reached all of them` : ''}${OFF}\n`,
+  );
+
   if (report.selectedNotInSheet.length > 0) {
     console.log(
       `${YELLOW}Selected but not in the sheet:${OFF} ${report.selectedNotInSheet.join(', ')}\n` +

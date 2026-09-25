@@ -8,9 +8,15 @@
 
 import type { OAuth2Client } from 'google-auth-library';
 import { downloadFile } from '../google/download.js';
+import { describeChannelMiss, type Channel } from '../domain/channels.js';
 import { storeDomain } from '../shopify/client.js';
 import { createStagedTargets, uploadToTarget, waitForMedia } from '../shopify/media.js';
-import { createProduct, findVariantBySku, setInventory } from '../shopify/products.js';
+import {
+  createProduct,
+  findVariantBySku,
+  publishToChannels,
+  setInventory,
+} from '../shopify/products.js';
 import type { ProductDraft } from '../domain/types.js';
 import type { ProductResult } from './report.js';
 
@@ -23,6 +29,7 @@ export async function createOne(
   draft: ProductDraft,
   rowNumber: number,
   locationId: string,
+  channels: Channel[],
 ): Promise<ProductResult> {
   const base = { rowNumber, sku: draft.displaySku, title: draft.title };
 
@@ -80,13 +87,29 @@ export async function createOne(
     const ready = media.filter((m) => m.status === 'READY').length;
     const failed = media.filter((m) => m.status === 'FAILED');
 
+    // Set last, after photos, price, weight and stock are all in place, so a
+    // channel is never offered a half-built product. A failure here — a
+    // partial `userErrors` list, or the call throwing outright — never turns
+    // this into anything but `created`/`partial`: the product already exists,
+    // and reporting otherwise would put a lie in the sheet. See ADR-0009.
+    let missedChannelNames: string[] = [];
+    if (channels.length > 0) {
+      try {
+        const outcome = await publishToChannels(product.id, channels);
+        missedChannelNames = outcome.missed.map((m) => m.channel.name);
+      } catch {
+        missedChannelNames = channels.map((channel) => channel.name);
+      }
+    }
+    const channelWarning = describeChannelMiss(missedChannelNames);
+
     return {
       ...base,
       status: failed.length > 0 || ready < files.length ? 'partial' : 'created',
       productId: product.id,
       adminUrl: adminUrl(product.id),
       photos: { total: files.length, ready, failed: failed.length },
-      warnings: draft.warnings,
+      warnings: channelWarning ? [...draft.warnings, channelWarning] : draft.warnings,
       detail:
         failed.length > 0
           ? failed.map((f) => f.errors.join('; ') || 'image processing failed').join(' | ')

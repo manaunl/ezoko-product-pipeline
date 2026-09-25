@@ -18,7 +18,9 @@ import { readConfig, writeConfig } from './config.js';
 import { authUrlFor, exchangeAndSave, isSignedIn, loadAuth } from '../google/auth.js';
 import { listPhotoFiles } from '../google/drive.js';
 import { readSheet } from '../google/sheets.js';
+import { decideChannels } from '../domain/channels.js';
 import { resetTokenCache, shopifyGraphql, storeDomain } from '../shopify/client.js';
+import { probeChannels } from '../shopify/products.js';
 import { fetchDescriptionCatalogue } from '../storefront/feed.js';
 import { VERSION } from '../version.js';
 
@@ -151,6 +153,13 @@ app.post('/api/setup/test', async (_req, res) => {
       message: error instanceof Error ? error.message : String(error),
     };
   }
+
+  // The channels every created product will be made available to. A run
+  // refuses to start without these, so this doubles as the first place
+  // anyone working on this tool can see the store's actual channel names.
+  // See ADR-0009.
+  const channelsDecision = decideChannels(await probeChannels());
+  result.channels = { ok: channelsDecision.proceed, message: channelsDecision.message };
 
   res.json(result);
 });
