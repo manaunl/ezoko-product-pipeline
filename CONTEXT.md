@@ -34,9 +34,18 @@ from. In the title only when there is no Product name.
 **Product name**:
 The owner's own words for what one piece is — `DRAGON (ON STAND)`, `GHOST IN
 HAT`. Optional, and feeds the title only: `{Stone} {Product name} - {size}
-{weight}`, falling back to the Product type when empty. Never a tag, never
-translated, never used to choose a description.
+{weight} ({Option label})`, falling back to the Product type when empty. Never
+a tag, never translated, never used to choose a description.
 _Avoid_: product title (that is the whole title, stone and size included)
+
+**Option label**:
+The owner's short code telling sibling pieces apart — `A1`, `A2` on a run of
+otherwise identical palmstones — read from the sheet's `Option` column. Ends
+the title in brackets, after the size and weight: `Amazonite Palmstone - 7 cm
+133 gr (A1)`. Optional; trimmed, upper-cased, and stripped of one pair of
+brackets he typed himself. Title-only: never a tag, never translated, never a
+Shopify variant option, and never derived from the SKU. `?` skips the row.
+_Avoid_: variant, option (alone — Shopify's product options are something else)
 
 **Product template**:
 The theme layout a product's page is rendered with. Every product this tool

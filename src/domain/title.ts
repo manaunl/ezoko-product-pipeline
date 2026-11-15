@@ -1,9 +1,11 @@
 /**
  * Product titles.
  *
- * Shape: `{Stone} {Piece} - {size} {weight}`, e.g. "Malachite Sphere - 38 mm
- * 110 gr". The piece is the owner's PRODUCT name when he has written one
- * ("Dragon (on Stand)"), and the product type otherwise. The owner asked for
+ * Shape: `{Stone} {Piece} - {size} {weight} ({Option label})`, e.g.
+ * "Malachite Sphere - 38 mm 110 gr", or "Amazonite Palmstone - 7 cm 133 gr
+ * (A1)" when the owner has labelled sibling pieces. The piece is the owner's
+ * PRODUCT name when he has written one ("Dragon (on Stand)"), and the product
+ * type otherwise. The owner asked for
  * the weight in the title: for a unique physical piece, size and weight
  * together are what a buyer is actually choosing between.
  *
@@ -69,12 +71,30 @@ export function formatProductName(raw: string): string {
     .join(' ');
 }
 
+/**
+ * The owner's Option label, as the end of a title shows it: "a1" → "A1".
+ *
+ * The header's own example is "Eg. (A1)", so he may type the brackets himself;
+ * one surrounding pair is stripped so the title never reads "((A1))". Upper
+ * case matches the SKU, whose suffix the label normally repeats. Null when
+ * there is nothing left to show.
+ */
+export function formatOptionLabel(raw: string): string | null {
+  const trimmed = raw.trim();
+  // One pair that wraps the whole label: "(A1)", but not "(A1) (B2)".
+  const unwrapped = trimmed.match(/^\(([^()]*)\)$/)?.[1] ?? trimmed;
+  const label = unwrapped.trim().replace(/\s+/g, ' ').toLocaleUpperCase('hu-HU');
+  return label === '' ? null : label;
+}
+
 export interface TitleInput {
   stoneEnglish: string;
   /** What the piece is: the formatted PRODUCT name, or the title-cased type. */
   piece: string;
   dimension: Measure | null;
   weight: Measure | null;
+  /** Already formatted by `formatOptionLabel`; null or absent for none. */
+  optionLabel?: string | null;
 }
 
 export function buildTitle({
@@ -82,6 +102,7 @@ export function buildTitle({
   piece,
   dimension,
   weight,
+  optionLabel = null,
 }: TitleInput): string {
   const name = [stoneEnglish, piece]
     .map((part) => part.trim().replace(/\s+/g, ' '))
@@ -96,7 +117,10 @@ export function buildTitle({
     .filter((part): part is string => part !== null)
     .join(' ');
 
-  return suffix === '' ? name : `${name} - ${suffix}`;
+  const measured = suffix === '' ? name : `${name} - ${suffix}`;
+  // Last of all, so the `{Stone} {Piece} - {size} {weight}` part reads exactly
+  // as on every product created before the label existed.
+  return optionLabel ? `${measured} (${optionLabel})` : measured;
 }
 
 /**

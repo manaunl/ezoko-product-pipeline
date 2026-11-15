@@ -92,7 +92,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 206 unit tests, no credentials required
+- 221 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not
@@ -169,7 +169,7 @@ Don't relitigate these without asking; each was argued through.
 | **Shopify is the source of truth, not the sheet** | Create + sheet-update aren't one transaction. Makes every run repeatable |
 | Photos: split filename on the **last** underscore | Exact SKU match, so `CA-738-A1` can't steal `CA-738-A11`'s photos |
 | Normalise the unambiguous, refuse the ambiguous | A best-effort guess puts the wrong photo on the wrong stone |
-| Title = `{Stone} {Product name or Type} - {size} {weight}` | the owner's format. The optional `PRODUCT name` column says what a carving actually is; empty falls back to the type, and tags stay on the type. Its small words stay lower case and its brackets are kept: `Dragonfly (on Stand)`. Size = first of height→width→depth in the cell's own unit; weight written as `gr`. Either part is dropped when missing |
+| Title = `{Stone} {Product name or Type} - {size} {weight} ({Option label})` | the owner's format. The optional `PRODUCT name` column says what a carving actually is; empty falls back to the type, and tags stay on the type. Its small words stay lower case and its brackets are kept: `Dragonfly (on Stand)`. Size = first of height→width→depth in the cell's own unit; weight written as `gr`. Either part is dropped when missing. The optional `Option` column tells sibling pieces apart and goes last, upper-cased, never doubling brackets he typed: `Agate Dragon - 5 cm 40 gr (A1)`, or `Agate Dragon (A1)` with no size or weight. Title-only, never a tag, never taken from the SKU; `?` skips the row |
 | Units read from the **cell**, not the header | The WIDTH header says nothing; the data says `"37 mm"` |
 | Prices are whole forints | HUF; every separator is a thousands separator |
 | Tags = lowercase stone + type | Shopify automated collections then build themselves |
@@ -242,8 +242,8 @@ match on a trimmed lowercase prefix — never by position.
 
 | Shape in the data | Handling |
 |---|---|
-| `"?"` in `PRICE`, `STONE Name` or `PRODUCT name` | Placeholder for "not decided". Row is **skipped**, not failed |
-| `"?"` beside other text: `"BRONZE ?"`, in `STONE Name` or `PRODUCT name` | A half-made decision, not a placeholder. **Invalid** (`NEEDS FIXING` in the sheet) — flagged even before the price is set, never created |
+| `"?"` in `PRICE`, `STONE Name`, `PRODUCT name` or `Option` | Placeholder for "not decided". Row is **skipped**, not failed |
+| `"?"` beside other text: `"BRONZE ?"`, in `STONE Name`, `PRODUCT name` or `Option` | A half-made decision, not a placeholder. **Invalid** (`NEEDS FIXING` in the sheet) — flagged even before the price is set, never created |
 | Dimensions as ranges: `"5-6 cm"`, `"2,5-3,5 cm"` | Both ends kept; title uses the upper bound |
 | `"17 cm (box)"` | Note stripped for parsing, kept for display |
 | Range SKUs: `CA-738-A1-A11` | **Refused** — one row covering 11 pieces with one price. The owner must split them |

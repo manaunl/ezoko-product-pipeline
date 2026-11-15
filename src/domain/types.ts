@@ -19,6 +19,8 @@ export interface SheetRow {
   productType: string;
   /** What the piece is ("DRAGON (ON STAND)"). Optional column; empty when absent. */
   productName: string;
+  /** The owner's label telling sibling pieces apart ("A1"). Optional column; empty when absent. */
+  optionLabel: string;
   price: string;
   weight: string;
   height: string;
@@ -66,6 +68,11 @@ export interface ProductDraft {
   /** SKU exactly as the owner typed it. */
   displaySku: string;
   title: string;
+  /**
+   * The Option label as it ends the title ("A1"), or null when the owner left
+   * the cell empty. Title-only: never a tag, a variant option, or a lookup key.
+   */
+  optionLabel: string | null;
   descriptionHtml: string;
   /**
    * The storefront heading the description was copied from, or null when the

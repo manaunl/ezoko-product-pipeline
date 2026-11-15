@@ -43,3 +43,24 @@ describe('reading the PRODUCT name column', () => {
     expect(columns.missingRequired).toEqual([]);
   });
 });
+
+describe('reading the Option column', () => {
+  /** The real sheet's header, exactly as typed. */
+  const OPTION_HEADER = 'Option Eg. (A1)';
+
+  it('finds it by its real header, wherever it sits', () => {
+    const { rows } = toRows([
+      [...HEADER, OPTION_HEADER],
+      [...DRAGON, 'A1'],
+    ]);
+    expect(rows[0]?.optionLabel).toBe('A1');
+    expect(rows[0]?.productName).toBe('DRAGON (ON STAND)');
+  });
+
+  it('is optional: a sheet without it reads as every label empty', () => {
+    const { columns, rows } = toRows([HEADER, DRAGON]);
+    expect(rows[0]?.optionLabel).toBe('');
+    expect(columns.missingOptional).toContain('optionLabel');
+    expect(columns.missingRequired).toEqual([]);
+  });
+});

@@ -28,6 +28,8 @@ const MATCHERS: Matcher[] = [
   { field: 'price', required: true, matches: startsWith('price') },
   { field: 'photoStatus', required: true, matches: startsWith('photo status') },
   { field: 'productName', required: false, matches: startsWith('product name') },
+  // The real header is "Option Eg. (A1)": the example is part of it.
+  { field: 'optionLabel', required: false, matches: startsWith('option') },
   { field: 'weight', required: false, matches: startsWith('weight') },
   { field: 'height', required: false, matches: startsWith('height') },
   { field: 'width', required: false, matches: startsWith('width') },
@@ -84,6 +86,7 @@ export function toRows(values: string[][]): { columns: ColumnMap; rows: SheetRow
       stoneName: cell(row, 'stoneName'),
       productType: cell(row, 'productType'),
       productName: cell(row, 'productName'),
+      optionLabel: cell(row, 'optionLabel'),
       price: cell(row, 'price'),
       weight: cell(row, 'weight'),
       height: cell(row, 'height'),

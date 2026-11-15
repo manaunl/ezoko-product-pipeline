@@ -19,7 +19,13 @@ import { normaliseSku } from './filenames.js';
 import { isBlank, parseMeasure, type Measure, type Unit } from './measure.js';
 import { parseHufPrice } from './numbers.js';
 import { translateStone, titleCase } from './stones.js';
-import { buildTags, buildTitle, formatProductName, pickTitleMeasure } from './title.js';
+import {
+  buildTags,
+  buildTitle,
+  formatOptionLabel,
+  formatProductName,
+  pickTitleMeasure,
+} from './title.js';
 import type { PhotoIndex, RowOutcome, RowProblem, SheetRow } from './types.js';
 
 /**
@@ -177,11 +183,11 @@ export function rowToOutcome(
     sku: displaySku || `(row ${rowNumber})`,
     problems: [{ field, message }],
   });
-  const refuseHalfDecided = (label: string, raw: string): RowOutcome | null =>
+  const refuseHalfDecided = (label: string, raw: string, decide = 'the name'): RowOutcome | null =>
     isHalfDecided(raw)
       ? invalid(
           label,
-          `${label} "${raw.trim()}" contains a question mark — decide the name, then run again`,
+          `${label} "${raw.trim()}" contains a question mark — decide ${decide}, then run again`,
         )
       : null;
   const skip = (reason: string): RowOutcome => ({
@@ -228,6 +234,13 @@ export function rowToOutcome(
   const nameHalfDecided = refuseHalfDecided('PRODUCT name', row.productName);
   if (nameHalfDecided) return nameHalfDecided;
 
+  // Option is optional in the same way: empty means no label. A bare "?" means
+  // he has not decided, and since a title is never renamed the row waits —
+  // also when typed "(?)", the way the header's "Eg. (A1)" shows.
+  if (formatOptionLabel(row.optionLabel) === '?') return skip('Option not decided yet');
+  const optionHalfDecided = refuseHalfDecided('Option', row.optionLabel, 'the label');
+  if (optionHalfDecided) return optionHalfDecided;
+
   if (isBlank(row.price)) return skip('PRICE not set yet');
 
   const matched = photos.bySku.get(sku) ?? [];
@@ -261,7 +274,9 @@ export function rowToOutcome(
   // type is only the fallback. Tags and product type stay on the type, so the
   // collections are unaffected.
   const piece = isBlank(row.productName) ? productType : formatProductName(row.productName);
-  const title = buildTitle({ stoneEnglish: stone.english, piece, dimension, weight });
+  // Only ever what he wrote — never inferred from the SKU's suffix.
+  const optionLabel = isBlank(row.optionLabel) ? null : formatOptionLabel(row.optionLabel);
+  const title = buildTitle({ stoneEnglish: stone.english, piece, dimension, weight, optionLabel });
 
   if (title === '') {
     problems.push({
@@ -290,6 +305,7 @@ export function rowToOutcome(
       sku,
       displaySku,
       title,
+      optionLabel,
       descriptionHtml: description.html,
       descriptionFrom: description.from,
       productType,

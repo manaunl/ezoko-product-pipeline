@@ -19,6 +19,7 @@ const malachiteSphere: SheetRow = {
   stoneName: 'Malachit',
   productType: 'SPHERE',
   productName: '',
+  optionLabel: '',
   price: '8500',
   weight: '110g',
   height: '',
@@ -138,6 +139,98 @@ describe('the PRODUCT name, when the owner has written one', () => {
     const draft = ready({ productName: 'DRAGON (ON STAND)' });
     expect(draft.tags).toEqual(['malachite', 'carving']);
     expect(draft.productType).toBe('Carving');
+  });
+});
+
+describe('the Option label, when the owner has written one', () => {
+  const ready = (overrides: Partial<SheetRow>) => {
+    const outcome = rowToOutcome(row({ productType: 'CARVING', ...overrides }), photos);
+    if (outcome.kind !== 'ready') throw new Error(`expected ready, got ${outcome.kind}`);
+    return outcome.draft;
+  };
+
+  it('goes in brackets at the very end, after the size and weight', () => {
+    expect(ready({ productName: 'DRAGON', optionLabel: 'A1' }).title).toBe(
+      'Malachite Dragon - 38 mm 110 gr (A1)',
+    );
+  });
+
+  it('goes straight after the name when there is no size or weight', () => {
+    // The label tells sibling pieces apart, so a missing measurement must not drop it.
+    const draft = ready({ productName: 'DRAGON', optionLabel: 'A1', width: '', weight: '' });
+    expect(draft.title).toBe('Malachite Dragon (A1)');
+  });
+
+  it('follows whichever part of the suffix is there', () => {
+    expect(ready({ optionLabel: 'A1', weight: '' }).title).toBe('Malachite Carving - 38 mm (A1)');
+    expect(ready({ optionLabel: 'A1', width: '' }).title).toBe('Malachite Carving - 110 gr (A1)');
+  });
+
+  it('is not doubled when the owner typed the brackets, as the header’s "Eg. (A1)" shows', () => {
+    expect(ready({ optionLabel: '(A1)' }).title).toBe('Malachite Carving - 38 mm 110 gr (A1)');
+    expect(ready({ optionLabel: ' ( A1 ) ' }).title).toBe('Malachite Carving - 38 mm 110 gr (A1)');
+  });
+
+  it('strips only a pair that really surrounds the whole label', () => {
+    // "(A1) (B2)" opens and closes with brackets, but they are two pairs, not one.
+    expect(ready({ optionLabel: '(A1) (B2)' }).title).toBe('Malachite Carving - 38 mm 110 gr ((A1) (B2))');
+  });
+
+  it('is upper-cased and trimmed, matching the SKU convention', () => {
+    expect(ready({ optionLabel: '  a1 ' }).title).toBe('Malachite Carving - 38 mm 110 gr (A1)');
+  });
+
+  it('sits beside a bracketed PRODUCT name, keeping both', () => {
+    const draft = ready({ productName: 'DRAGON (ON STAND)', optionLabel: 'A1', width: '9 cm', weight: '50' });
+    expect(draft.title).toBe('Malachite Dragon (on Stand) - 9 cm 50 gr (A1)');
+  });
+
+  it('leaves the title exactly as today when empty', () => {
+    for (const optionLabel of ['', '   ', '-']) {
+      expect(ready({ optionLabel }).title, JSON.stringify(optionLabel)).toBe('Malachite Carving - 38 mm 110 gr');
+    }
+  });
+
+  it('is never derived from the SKU', () => {
+    // SKU CA-745-A1 has an option-shaped suffix; the title only says what he wrote.
+    const outcome = rowToOutcome(
+      row({ sku: 'CA-745-A1', productType: 'CARVING' }),
+      indexPhotos([photo('CA-745-A1_01.jpg')]),
+    );
+    if (outcome.kind !== 'ready') throw new Error(`expected ready, got ${outcome.kind}`);
+    expect(outcome.draft.title).toBe('Malachite Carving - 38 mm 110 gr');
+  });
+
+  it('never becomes a tag, and leaves type and description alone', () => {
+    const plain = withCopy({ productType: 'CARVING' });
+    const labelled = withCopy({ productType: 'CARVING', optionLabel: 'A1' });
+    expect(labelled.tags).toEqual(['malachite', 'carving']);
+    expect(labelled.productType).toBe(plain.productType);
+    expect(labelled.descriptionHtml).toBe(plain.descriptionHtml);
+  });
+
+  it('skips the row while it is still "?", bracketed or not', () => {
+    // A title is never renamed, so an undecided label must not go out without it.
+    // "(?)" is "?" typed the way the header's "Eg. (A1)" shows.
+    for (const optionLabel of ['?', ' ? ', '(?)']) {
+      const outcome = rowToOutcome(row({ optionLabel }), photos);
+      if (outcome.kind !== 'skipped') throw new Error(`${optionLabel}: expected skipped, got ${outcome.kind}`);
+      expect(outcome.reason).toBe('Option not decided yet');
+    }
+  });
+
+  it('refuses a label with a question mark beside it, naming the cell and the fix', () => {
+    const outcome = rowToOutcome(row({ optionLabel: 'A1 ?' }), photos);
+    if (outcome.kind !== 'invalid') throw new Error(`expected invalid, got ${outcome.kind}`);
+    const message = outcome.problems.map((p) => p.message).join(' | ');
+    expect(message).toContain('Option "A1 ?"');
+    expect(message).toContain('question mark');
+    expect(message).toContain('decide the label');
+  });
+
+  it('flags the question mark even before the price is set', () => {
+    const outcome = rowToOutcome(row({ optionLabel: 'A1 ?', price: '?' }), photos);
+    expect(outcome.kind).toBe('invalid');
   });
 });
 
