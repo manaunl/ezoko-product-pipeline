@@ -235,6 +235,56 @@ describe('the Option label, when the owner has written one', () => {
   });
 });
 
+describe('the Option label checked against the SKU', () => {
+  // A typo on either side would put one piece's photos under another piece's
+  // label. He is told, but the label he chose is still what goes in the title.
+  const labelled = (sku: string, optionLabel: string) => {
+    const outcome = rowToOutcome(
+      row({ sku, optionLabel }),
+      indexPhotos([photo(`${sku.trim().toUpperCase()}_01.jpg`)]),
+    );
+    if (outcome.kind !== 'ready') throw new Error(`${sku} / ${optionLabel}: expected ready, got ${outcome.kind}`);
+    return outcome.draft;
+  };
+  // What the label adds: the same row's warnings minus those it has unlabelled,
+  // so no rewording of the message can make a "says nothing" case pass vacuously.
+  const optionWarnings = (sku: string, optionLabel: string) => {
+    const without = new Set(labelled(sku, '').warnings);
+    return labelled(sku, optionLabel).warnings.filter((w) => !without.has(w));
+  };
+
+  it('warns when the label differs from the SKU’s suffix, and still creates it with his label', () => {
+    const draft = labelled('TU-232-A1', 'A2');
+    expect(draft.warnings).toContain('Option is A2 but the SKU ends in A1 — check which is right');
+    expect(draft.title).toBe('Malachite Sphere - 38 mm 110 gr (A2)');
+  });
+
+  it('warns when the SKU has no option suffix at all, and still creates it with his label', () => {
+    const draft = labelled('TU-250', 'A1');
+    expect(draft.warnings).toContain('Option is A1 but the SKU has no option suffix');
+    expect(draft.title).toBe('Malachite Sphere - 38 mm 110 gr (A1)');
+  });
+
+  it('counts only letters followed by digits as an option suffix', () => {
+    // SP-190-B ends in a letter alone: not the A1-style suffix the label repeats.
+    expect(optionWarnings('SP-190-B', 'B')).toEqual(['Option is B but the SKU has no option suffix']);
+  });
+
+  it('says nothing when the label repeats the suffix, however he typed either', () => {
+    expect(optionWarnings('TU-232-A1', 'A1')).toEqual([]);
+    expect(optionWarnings('TU-232-A1', '(a1)')).toEqual([]);
+    expect(optionWarnings(' tu-232-a1 ', 'A1')).toEqual([]);
+    expect(optionWarnings('TU-232-AB12', 'AB12')).toEqual([]);
+  });
+
+  it('says nothing when there is no label', () => {
+    for (const optionLabel of ['', '   ', '-']) {
+      expect(optionWarnings('TU-232-A1', optionLabel), JSON.stringify(optionLabel)).toEqual([]);
+      expect(optionWarnings('TU-250', optionLabel), JSON.stringify(optionLabel)).toEqual([]);
+    }
+  });
+});
+
 describe('the Stock, as the starting quantity', () => {
   const stockOf = (stock: string) => {
     const outcome = rowToOutcome(row({ stock }), photos);

@@ -94,7 +94,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 232 unit tests, no credentials required
+- 237 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not
@@ -254,6 +254,7 @@ match on a trimmed lowercase prefix — never by position.
 | Stone names mixed HU/EN, mixed case | `data/stone-names.json`; unknowns pass through and warn |
 | A stone the shop has never described | Created with an empty body and a warning |
 | Notes typed into `Stock`: `"the stoen is broken "`, `"Missing Stone name"`, `"NEEDS FIXING"` | Never read as a quantity. Anything but a whole number above zero (`5 db` / `5 pcs` allowed) is **invalid**; empty is 1; `?` skips. Parsed with the price, so it never turns a row red that is already skipped for an earlier reason |
+| Option vs SKU suffix: Option `A2` on `TU-232-A1`, or `A1` on `TU-250` | **Warned, never refused.** A label that differs from the SKU's `-<letters><digits>` suffix, or a label on a SKU with no such suffix, is a likely typo that would put one piece's photos under another's label. His label still goes in the title; the warning reaches the preview and the Notes column |
 
 Product types seen so far: `CARVING`, `SPHERE`, `CRYSTAL`, `TUMBLE STONE`,
 `SMALL FIGURES`, `TOWER`, `HEART`, `PENDANT`. New ones need no code change.

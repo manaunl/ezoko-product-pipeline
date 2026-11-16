@@ -68,6 +68,31 @@ export function looksLikeRangeSku(sku: string): boolean {
 }
 
 /**
+ * The suffix that tells sibling pieces apart: the `A1` of `TU-232-A1`. Letters
+ * then digits, after the last hyphen. `SP-190-B` has none — a bare letter is
+ * not the shape the owner's Option labels repeat.
+ */
+const OPTION_SUFFIX = /-([A-Z]+[0-9]+)$/;
+
+/**
+ * A warning when the owner's Option label and the SKU disagree, or null.
+ *
+ * A typo on either side would put one piece's photos under another piece's
+ * label, so he is told before he creates it. Never a refusal: the label he
+ * chose is still what goes in the title, because he may have chosen it
+ * deliberately and only he can say which side is wrong.
+ */
+function optionMismatchWarning(sku: string, optionLabel: string | null): string | null {
+  if (optionLabel === null) return null;
+  const suffix = OPTION_SUFFIX.exec(sku)?.[1];
+  if (suffix === undefined) return `Option is ${optionLabel} but the SKU has no option suffix`;
+  if (suffix !== optionLabel) {
+    return `Option is ${optionLabel} but the SKU ends in ${suffix} — check which is right`;
+  }
+  return null;
+}
+
+/**
  * Default units for bare numbers, taken from the column headers. WIDTH is
  * deliberately null: its header states no unit and its data is millimetres, so
  * a bare number there is genuinely ambiguous.
@@ -296,6 +321,8 @@ export function rowToOutcome(
     return { kind: 'invalid', rowNumber, sku: displaySku, problems };
   }
 
+  const optionWarning = optionMismatchWarning(sku, optionLabel);
+  if (optionWarning) warnings.push(optionWarning);
   if (dimension === null) warnings.push('no height, width or depth — the title will have no size');
   if (weight === null) warnings.push('no weight — shipping cost cannot be calculated from it');
 

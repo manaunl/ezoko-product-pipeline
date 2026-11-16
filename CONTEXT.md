@@ -45,6 +45,8 @@ the title in brackets, after the size and weight: `Amazonite Palmstone - 7 cm
 133 gr (A1)`. Optional; trimmed, upper-cased, and stripped of one pair of
 brackets he typed himself. Title-only: never a tag, never translated, never a
 Shopify variant option, and never derived from the SKU. `?` skips the row.
+A label that disagrees with the SKU's own suffix (`A2` on `TU-232-A1`), or
+sits on a SKU with no suffix, is warned about but never refused.
 _Avoid_: variant, option (alone — Shopify's product options are something else)
 
 **Stock**:
