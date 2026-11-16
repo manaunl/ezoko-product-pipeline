@@ -6,8 +6,9 @@ One spreadsheet row plus its SKU-named photos becomes one draft product — titl
 description, price, weight, inventory, tags and images — which a human then
 reviews and publishes in the Shopify admin.
 
-Built for a dealer in individual mineral and crystal pieces. Every SKU is a
-unique physical stone, so every product has exactly one variant.
+Built for a dealer in individual mineral and crystal pieces. Every SKU is one
+physical stone, or a handful of identical ones counted by the sheet's `Stock`
+column, so every product has exactly one variant.
 
 ---
 
@@ -280,8 +281,9 @@ ezoko.shop/en ─┘
    - **invalid** — something a human must fix. Reported, never guessed at.
 6. **Create**, for each ready row: check the SKU doesn't already exist → upload
    photos → `productCreate` as **draft** → set SKU/price/weight on the default
-   variant → set inventory to 1 → wait for image processing to finish → make it
-   available to every one of the store's sales channels.
+   variant → set the starting stock (the row's `Stock`, 1 when empty) → wait for
+   image processing to finish → make it available to every one of the store's
+   sales channels.
 
 ### Sales channels
 

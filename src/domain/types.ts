@@ -21,6 +21,8 @@ export interface SheetRow {
   productName: string;
   /** The owner's label telling sibling pieces apart ("A1"). Optional column; empty when absent. */
   optionLabel: string;
+  /** How many identical pieces the row stands for ("28", "5 db"). Optional column; empty when absent. */
+  stock: string;
   price: string;
   weight: string;
   height: string;
@@ -73,6 +75,12 @@ export interface ProductDraft {
    * the cell empty. Title-only: never a tag, a variant option, or a lookup key.
    */
   optionLabel: string | null;
+  /**
+   * The available quantity the product is created with: a whole number, at
+   * least 1. Set once, at creation — Shopify's inventory is the truth after
+   * that, and editing the sheet changes nothing (ADR-0005).
+   */
+  stock: number;
   descriptionHtml: string;
   /**
    * The storefront heading the description was copied from, or null when the

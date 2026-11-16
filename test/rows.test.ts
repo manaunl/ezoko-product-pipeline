@@ -64,3 +64,32 @@ describe('reading the Option column', () => {
     expect(columns.missingRequired).toEqual([]);
   });
 });
+
+describe('reading the Stock column', () => {
+  /** The real sheet's header, exactly as typed — with the stray line break. */
+  const STOCK_HEADER = '\nStock';
+
+  it('finds it by its real header, wherever it sits', () => {
+    const { rows } = toRows([
+      [STOCK_HEADER, ...HEADER],
+      ['28', ...DRAGON],
+    ]);
+    expect(rows[0]?.stock).toBe('28');
+    expect(rows[0]?.sku).toBe('CA-738-A1');
+  });
+
+  it('does not take a header that merely starts with "stock"', () => {
+    const { rows } = toRows([
+      [...HEADER, 'Stock notes'],
+      [...DRAGON, 'broken'],
+    ]);
+    expect(rows[0]?.stock).toBe('');
+  });
+
+  it('is optional: a sheet without it reads as every stock cell empty', () => {
+    const { columns, rows } = toRows([HEADER, DRAGON]);
+    expect(rows[0]?.stock).toBe('');
+    expect(columns.missingOptional).toContain('stock');
+    expect(columns.missingRequired).toEqual([]);
+  });
+});

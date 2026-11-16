@@ -30,7 +30,9 @@ update by itself.
 - Hungarian→English stone-name translation
 - Shopify connection via client credentials grant, token auto-refresh
 - **Full create path**: staged upload → `productCreate` (draft) → variant
-  (SKU/price/weight) → inventory 1 → wait for image processing
+  (SKU/price/weight) → starting stock (the row's Stock, 1 when empty) → wait
+  for image processing. Stock verified on the test store: a row with Stock
+  `28` was created with 28 available at the location
 - Batch runner with preview/commit, `--limit`, repeatable `--sku`, and JSON run
   artifacts
 - **Local web page** (`npm start`, or double-click `start.command`) — a Preview
@@ -92,7 +94,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 221 unit tests, no credentials required
+- 232 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not
@@ -162,7 +164,7 @@ Don't relitigate these without asking; each was argued through.
 
 | Decision | Why |
 |---|---|
-| One row = one product = one variant | Every stone is a unique physical piece |
+| One row = one product = one variant | A row is one piece, or several identical ones sharing a price, size and photos. Stock says how many; it is never a reason to split a row into variants |
 | Everything is created as **DRAFT** | A human publishes. Bugs are found by us, not customers |
 | **No delete anywhere in the codebase** | Cannot destroy a catalogue we cannot test against |
 | Preview is the default; `--commit` required | The dangerous action is the one you ask for |
@@ -251,6 +253,7 @@ match on a trimmed lowercase prefix — never by position.
 | Weight missing | Warning only, still created — but the title then has no weight, so the title is inconsistent with the owner's requested format until he fills it in |
 | Stone names mixed HU/EN, mixed case | `data/stone-names.json`; unknowns pass through and warn |
 | A stone the shop has never described | Created with an empty body and a warning |
+| Notes typed into `Stock`: `"the stoen is broken "`, `"Missing Stone name"`, `"NEEDS FIXING"` | Never read as a quantity. Anything but a whole number above zero (`5 db` / `5 pcs` allowed) is **invalid**; empty is 1; `?` skips. Parsed with the price, so it never turns a row red that is already skipped for an earlier reason |
 
 Product types seen so far: `CARVING`, `SPHERE`, `CRYSTAL`, `TUMBLE STONE`,
 `SMALL FIGURES`, `TOWER`, `HEART`, `PENDANT`. New ones need no code change.

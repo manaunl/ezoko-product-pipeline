@@ -17,7 +17,7 @@
 import { lookupDescription, type DescriptionCatalogue } from './descriptions.js';
 import { normaliseSku } from './filenames.js';
 import { isBlank, parseMeasure, type Measure, type Unit } from './measure.js';
-import { parseHufPrice } from './numbers.js';
+import { parseHufPrice, parseStock } from './numbers.js';
 import { translateStone, titleCase } from './stones.js';
 import {
   buildTags,
@@ -242,6 +242,10 @@ export function rowToOutcome(
   if (optionHalfDecided) return optionHalfDecided;
 
   if (isBlank(row.price)) return skip('PRICE not set yet');
+  // Only the placeholder is checked here. Anything else in Stock, notes
+  // included, is parsed with the price below, so a note never turns a row red
+  // that is still waiting for one of the reasons above.
+  if (row.stock.trim() === '?') return skip('Stock not decided yet');
 
   const matched = photos.bySku.get(sku) ?? [];
   if (requirePhotos && matched.length === 0) {
@@ -260,6 +264,9 @@ export function rowToOutcome(
 
   const price = parseHufPrice(row.price);
   if (!price.ok) problems.push({ field: 'PRICE', message: price.reason });
+
+  const stock = parseStock(row.stock);
+  if (!stock.ok) problems.push({ field: 'Stock', message: stock.reason });
 
   const stone = translateStone(row.stoneName);
   if (stone.untranslated) {
@@ -306,6 +313,7 @@ export function rowToOutcome(
       displaySku,
       title,
       optionLabel,
+      stock: stock.ok ? stock.value : 1,
       descriptionHtml: description.html,
       descriptionFrom: description.from,
       productType,

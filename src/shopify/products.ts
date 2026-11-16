@@ -7,7 +7,7 @@
  *   2. productCreate, with the already-uploaded media attached
  *   3. update the auto-created default variant (SKU, price, weight, tracking) —
  *      variants cannot be set inline on create in current API versions
- *   4. set inventory to 1 at the location
+ *   4. set the starting stock at the location — the row's Stock, 1 when empty
  *
  * Nothing here deletes. There is no delete mutation anywhere in this codebase,
  * which is what makes it safe to point at a live store you cannot test against:
@@ -228,7 +228,9 @@ async function currentQuantity(inventoryItemId: string, locationId: string): Pro
 }
 
 /**
- * Each stone is a unique physical piece, so the quantity is always 1.
+ * Sets the starting stock: 1 for a unique piece, or the row's Stock when it
+ * stands for several identical ones. Only ever called on a product this run
+ * has just created — after that Shopify's inventory is the truth (ADR-0005).
  *
  * The mutation requires `changeFromQuantity` — the value we believe is there
  * now — and rejects the call if it is wrong. Assuming 0 works for a fresh
@@ -240,7 +242,7 @@ async function currentQuantity(inventoryItemId: string, locationId: string): Pro
 export async function setInventory(
   inventoryItemId: string,
   locationId: string,
-  quantity = 1,
+  quantity: number,
 ): Promise<void> {
   const current = await currentQuantity(inventoryItemId, locationId);
   if (current === quantity) return;

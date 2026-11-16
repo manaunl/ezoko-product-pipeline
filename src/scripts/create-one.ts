@@ -122,7 +122,7 @@ async function main(): Promise<void> {
       alt: `${draft.title} — photo ${i + 1}`,
     })),
   );
-  await setInventory(product.inventoryItemId, await primaryLocationId(), 1);
+  await setInventory(product.inventoryItemId, await primaryLocationId(), draft.stock);
 
   step(6, 'waiting for Shopify to finish processing the images');
   const media = await waitForMedia(product.id, files.length);

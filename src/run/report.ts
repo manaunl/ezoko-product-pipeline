@@ -38,6 +38,12 @@ export interface ProductResult {
   productId?: string;
   adminUrl?: string;
   photos?: { total: number; ready: number; failed: number };
+  /**
+   * The starting stock this run created the product with, or would have. Absent
+   * where the run did not decide it: a row that never became a Product Draft,
+   * or a product already in Shopify, whose stock is whatever Shopify says now.
+   */
+  stock?: number;
   warnings?: string[];
 }
 

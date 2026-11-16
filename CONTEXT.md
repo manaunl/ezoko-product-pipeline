@@ -47,6 +47,17 @@ brackets he typed himself. Title-only: never a tag, never translated, never a
 Shopify variant option, and never derived from the SKU. `?` skips the row.
 _Avoid_: variant, option (alone — Shopify's product options are something else)
 
+**Stock**:
+How many identical pieces a row stands for, read from the sheet's `Stock`
+column, and so the available quantity the product is created with: `28`, or
+`5 db` / `5 pcs`. Empty means 1, a unique piece, as every row was before the
+column existed. The **starting** quantity only — set once, at creation, and
+never again: Shopify's inventory is the truth afterwards, and editing the cell
+changes nothing (ADR-0005). The owner also types notes into this column, so
+anything that is not a whole number above zero needs fixing rather than being
+read as 1. `?` skips the row.
+_Avoid_: inventory (Shopify's, which moves with every sale), quantity (alone)
+
 **Product template**:
 The theme layout a product's page is rendered with. Every product this tool
 creates uses the owner's `bracelet` template — despite its name, it is the one

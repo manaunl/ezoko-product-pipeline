@@ -78,7 +78,7 @@ export async function createOne(
       })),
     );
 
-    await setInventory(product.inventoryItemId, locationId, 1);
+    await setInventory(product.inventoryItemId, locationId, draft.stock);
 
     // Attaching media is asynchronous: the mutation succeeds and Shopify can
     // still fail to process the image afterwards. Without this wait a product
@@ -105,6 +105,7 @@ export async function createOne(
 
     return {
       ...base,
+      stock: draft.stock,
       status: failed.length > 0 || ready < files.length ? 'partial' : 'created',
       productId: product.id,
       adminUrl: adminUrl(product.id),
@@ -118,6 +119,7 @@ export async function createOne(
   } catch (error: unknown) {
     return {
       ...base,
+      stock: draft.stock,
       status: 'failed',
       detail: error instanceof Error ? error.message : String(error),
     };

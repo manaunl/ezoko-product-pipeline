@@ -31,6 +31,39 @@ export function parseHufPrice(raw: string): PriceResult {
   return { ok: true, value };
 }
 
+/**
+ * The owner's Stock cell: how many identical pieces the row stands for, set once
+ * as the product's starting quantity.
+ *
+ * He also types notes into this column ("the stoen is broken"), so anything
+ * that is not plainly a whole number above zero is refused rather than read as
+ * 1 — a note created at 1 would list a piece he has written is broken. The
+ * units he naturally adds, Hungarian `db` and English `pcs`, are accepted.
+ * Empty means one unique piece, as before the column existed. A bare `-`,
+ * which other columns treat as empty, is refused here: in a quantity column it
+ * may as well mean none, and guessing 1 would list it. The `?`
+ * placeholder is the caller's to handle: it skips the row, which is not this
+ * function's decision.
+ */
+export type StockResult = { ok: true; value: number } | { ok: false; reason: string };
+
+const STOCK = /^(\d+)\s*(?:db|pcs)?$/i;
+
+export function parseStock(raw: string): StockResult {
+  const shown = raw.trim();
+  if (shown === '') return { ok: true, value: 1 };
+
+  const digits = shown.match(STOCK)?.[1];
+  const value = digits === undefined ? NaN : Number(digits);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    return {
+      ok: false,
+      reason: `Stock "${shown}" is not a quantity. Stock must be a whole number such as 1 or 10. Keep notes in another column.`,
+    };
+  }
+  return { ok: true, value };
+}
+
 export function formatHuf(value: number): string {
   return `${value.toLocaleString('hu-HU')} Ft`;
 }

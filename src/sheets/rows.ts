@@ -30,6 +30,9 @@ const MATCHERS: Matcher[] = [
   { field: 'productName', required: false, matches: startsWith('product name') },
   // The real header is "Option Eg. (A1)": the example is part of it.
   { field: 'optionLabel', required: false, matches: startsWith('option') },
+  // The real header is "\nStock" — a stray line break, gone once normalised.
+  // Exact, so a "Stock notes" column could never be read as quantities.
+  { field: 'stock', required: false, matches: equals('stock') },
   { field: 'weight', required: false, matches: startsWith('weight') },
   { field: 'height', required: false, matches: startsWith('height') },
   { field: 'width', required: false, matches: startsWith('width') },
@@ -87,6 +90,7 @@ export function toRows(values: string[][]): { columns: ColumnMap; rows: SheetRow
       productType: cell(row, 'productType'),
       productName: cell(row, 'productName'),
       optionLabel: cell(row, 'optionLabel'),
+      stock: cell(row, 'stock'),
       price: cell(row, 'price'),
       weight: cell(row, 'weight'),
       height: cell(row, 'height'),

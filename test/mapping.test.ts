@@ -20,6 +20,7 @@ const malachiteSphere: SheetRow = {
   productType: 'SPHERE',
   productName: '',
   optionLabel: '',
+  stock: '',
   price: '8500',
   weight: '110g',
   height: '',
@@ -231,6 +232,95 @@ describe('the Option label, when the owner has written one', () => {
   it('flags the question mark even before the price is set', () => {
     const outcome = rowToOutcome(row({ optionLabel: 'A1 ?', price: '?' }), photos);
     expect(outcome.kind).toBe('invalid');
+  });
+});
+
+describe('the Stock, as the starting quantity', () => {
+  const stockOf = (stock: string) => {
+    const outcome = rowToOutcome(row({ stock }), photos);
+    if (outcome.kind !== 'ready') throw new Error(`${JSON.stringify(stock)}: expected ready, got ${outcome.kind}`);
+    return outcome.draft.stock;
+  };
+
+  it('is 1 when the cell is empty, as for every unique piece today', () => {
+    expect(stockOf('')).toBe(1);
+    expect(stockOf('   ')).toBe(1);
+  });
+
+  it('is the number he wrote, when it is a whole number above zero', () => {
+    expect(stockOf('1')).toBe(1);
+    expect(stockOf('28')).toBe(28);
+    expect(stockOf(' 10 ')).toBe(10);
+  });
+
+  it('reads "db" and "pcs" after the number, in any case, with or without a space', () => {
+    for (const stock of ['5 db', '5db', '5 DB', '5 Db', '5 pcs', '5pcs', '5 PCS', '5 Pcs']) {
+      expect(stockOf(stock), stock).toBe(5);
+    }
+  });
+
+  it('skips the row while it is still "?"', () => {
+    for (const stock of ['?', ' ? ']) {
+      const outcome = rowToOutcome(row({ stock }), photos);
+      if (outcome.kind !== 'skipped') throw new Error(`${stock}: expected skipped, got ${outcome.kind}`);
+      expect(outcome.reason).toBe('Stock not decided yet');
+    }
+  });
+
+  it('refuses anything that is not a whole number above zero, quoting the cell and the fix', () => {
+    // A note typed into Stock must never be read as a quantity: "the stoen is
+    // broken" created at 1 would list a piece he wrote is broken.
+    for (const stock of [
+      '0',
+      '-3',
+      '-',
+      '1.5',
+      '1,5',
+      '2.0',
+      'the stoen is broken ',
+      'Missing Stone name',
+      'NEEDS FIXING',
+      '5 kg',
+      'db 5',
+      '5 db 3',
+      '1 000',
+    ]) {
+      const outcome = rowToOutcome(row({ stock }), photos);
+      if (outcome.kind !== 'invalid') throw new Error(`${JSON.stringify(stock)}: expected invalid, got ${outcome.kind}`);
+      const message = outcome.problems.map((p) => p.message).join(' | ');
+      expect(message, stock).toContain(`Stock "${stock.trim()}"`);
+      expect(message, stock).toContain(
+        'Stock must be a whole number such as 1 or 10. Keep notes in another column.',
+      );
+    }
+  });
+
+  it('joins the price and measurement problems rather than replacing them', () => {
+    const outcome = rowToOutcome(row({ stock: 'broken', price: 'abc' }), photos);
+    if (outcome.kind !== 'invalid') throw new Error(`expected invalid, got ${outcome.kind}`);
+    expect(outcome.problems.map((p) => p.field).sort()).toEqual(['PRICE', 'Stock']);
+  });
+
+  it('never pre-empts an earlier reason to skip the row', () => {
+    // Unfinished rows must not all turn red because Stock holds a note.
+    const cases: [Partial<SheetRow>, string][] = [
+      [{ stoneName: '' }, 'STONE Name not filled in yet'],
+      [{ photoStatus: '' }, 'PHOTO Status is empty'],
+      [{ price: '?' }, 'PRICE not set yet'],
+    ];
+    for (const [overrides, reason] of cases) {
+      const outcome = rowToOutcome(row({ ...overrides, stock: 'the stoen is broken' }), photos);
+      if (outcome.kind !== 'skipped') throw new Error(`${reason}: expected skipped, got ${outcome.kind}`);
+      expect(outcome.reason).toBe(reason);
+    }
+  });
+
+  it('leaves the title, tags and price alone', () => {
+    const plain = withCopy();
+    const stocked = withCopy({ stock: '28' });
+    expect(stocked.title).toBe(plain.title);
+    expect(stocked.tags).toEqual(plain.tags);
+    expect(stocked.priceHuf).toBe(plain.priceHuf);
   });
 });
 
