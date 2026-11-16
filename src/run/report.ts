@@ -44,6 +44,11 @@ export interface ProductResult {
    * or a product already in Shopify, whose stock is whatever Shopify says now.
    */
   stock?: number;
+  /**
+   * The price this run created the product at, or would have, in whole
+   * forints. Absent exactly where `stock` is, and for the same reason.
+   */
+  priceHuf?: number;
   warnings?: string[];
 }
 

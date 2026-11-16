@@ -12,6 +12,7 @@
 
 import '../bootstrap.js';
 
+import { formatPriceWithStock } from '../domain/numbers.js';
 import { run } from '../run/runner.js';
 import { countByStatus, hasFailures, type ProductResult, type RunReport } from '../run/report.js';
 import { runsDir } from '../paths.js';
@@ -65,6 +66,10 @@ function printResult(result: ProductResult): void {
     `  ${label.colour}${label.text.padEnd(12)}${OFF} ${result.sku.padEnd(14)} ` +
       `${result.title ?? ''}`,
   );
+  // Only before creation, as on the page: afterwards Shopify's count is the truth.
+  if (result.status === 'would-create' && result.priceHuf !== undefined) {
+    console.log(`               ${DIM}${formatPriceWithStock(result.priceHuf, result.stock ?? 1)}${OFF}`);
+  }
   if (result.photos && result.status !== 'would-create') {
     console.log(`               ${DIM}${result.photos.ready}/${result.photos.total} photos${OFF}`);
   }

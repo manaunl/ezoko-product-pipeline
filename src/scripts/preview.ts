@@ -16,7 +16,7 @@ import { buildSpecParts } from '../domain/spec.js';
 import { loadDescriptionAliases } from '../domain/descriptions.js';
 import { claimedSku, indexPhotos, normaliseSku } from '../domain/filenames.js';
 import { findDuplicateSkus, rowToOutcome } from '../domain/mapping.js';
-import { formatHuf } from '../domain/numbers.js';
+import { formatPriceWithStock } from '../domain/numbers.js';
 import { listPhotoFiles } from '../google/drive.js';
 import { readSheet } from '../google/sheets.js';
 import { loadAuth } from '../google/auth.js';
@@ -43,7 +43,7 @@ function printReady(outcome: Extract<RowOutcome, { kind: 'ready' }>): void {
     `${DIM}row ${String(outcome.rowNumber).padStart(3)}${OFF}  ${GREEN}CREATE${OFF}  ${BOLD}${draft.title}${OFF}`,
   );
   console.log(`            ${DIM}sku${OFF}    ${draft.displaySku}`);
-  console.log(`            ${DIM}price${OFF}  ${formatHuf(draft.priceHuf)}`);
+  console.log(`            ${DIM}price${OFF}  ${formatPriceWithStock(draft.priceHuf, draft.stock)}`);
   console.log(
     `            ${DIM}specs${OFF}  ${buildSpecParts(draft).join(' · ') || `${DIM}(none)${OFF}`}`,
   );

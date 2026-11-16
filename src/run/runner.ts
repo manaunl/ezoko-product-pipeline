@@ -215,6 +215,7 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
                 status: 'would-create',
                 photos: { total: draft.photos.length, ready: 0, failed: 0 },
                 stock: draft.stock,
+                priceHuf: draft.priceHuf,
                 warnings: draft.warnings,
               },
         );
@@ -227,6 +228,7 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
           status: 'would-create',
           photos: { total: draft.photos.length, ready: 0, failed: 0 },
           stock: draft.stock,
+          priceHuf: draft.priceHuf,
           warnings: [
             ...draft.warnings,
             `could not check Shopify for this SKU: ${
@@ -271,6 +273,7 @@ export async function run(options: RunOptions = {}): Promise<RunReport> {
       sku: draft.displaySku,
       title: draft.title,
       stock: draft.stock,
+      priceHuf: draft.priceHuf,
       status: 'skipped',
       detail: reason,
     });

@@ -37,7 +37,10 @@ update by itself.
   artifacts
 - **Local web page** (`npm start`, or double-click `start.command`) — a Preview
   button, then a checkbox on every row it would create (nothing ticked),
-  **Select all** and **Create selected (N)**. After a commit the list is still
+  **Select all** and **Create selected (N)**. Each row it would create shows its
+  price, with `× N` beside it when it starts with more than one piece — the starting stock,
+  which the page says is changed in Shopify afterwards, not the sheet (the CLI
+  previews show the same). After a commit the list is still
   the last preview, with everything created since laid over it (assembled from
   the run reports), so unticked rows keep what the preview said and can be
   ticked next. Ticking is allowed
@@ -94,7 +97,7 @@ update by itself.
   GitHub outage is a note, not a failure. Refuses while a run is live.
   `npm run test:update` — 21 checks driven through a fake GitHub on localhost,
   so it needs neither network nor a published release
-- 237 unit tests, no credentials required
+- 240 unit tests, no credentials required
 
 **The tool only ever creates, never updates.** A product already in Shopify
 keeps whatever title it was created with — changing the title format does not

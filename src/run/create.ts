@@ -106,6 +106,7 @@ export async function createOne(
     return {
       ...base,
       stock: draft.stock,
+      priceHuf: draft.priceHuf,
       status: failed.length > 0 || ready < files.length ? 'partial' : 'created',
       productId: product.id,
       adminUrl: adminUrl(product.id),
@@ -120,6 +121,7 @@ export async function createOne(
     return {
       ...base,
       stock: draft.stock,
+      priceHuf: draft.priceHuf,
       status: 'failed',
       detail: error instanceof Error ? error.message : String(error),
     };

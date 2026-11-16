@@ -67,3 +67,15 @@ export function parseStock(raw: string): StockResult {
 export function formatHuf(value: number): string {
   return `${value.toLocaleString('hu-HU')} Ft`;
 }
+
+/**
+ * The price with the starting stock beside it, as a preview shows it:
+ * "8 500 Ft × 28". A single piece shows the price alone — that is every unique
+ * stone, and marking each of them "× 1" would bury the rows that differ.
+ *
+ * The quantity appears nowhere else the owner checks before creating a row,
+ * and once the product exists Shopify's count is the truth, not this one.
+ */
+export function formatPriceWithStock(priceHuf: number, stock: number): string {
+  return stock === 1 ? formatHuf(priceHuf) : `${formatHuf(priceHuf)} × ${stock}`;
+}

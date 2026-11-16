@@ -221,6 +221,10 @@
       Then tick the products you want and press <strong>Create selected</strong>. They are
       created as drafts — nothing goes on sale until you publish it yourself in Shopify.
     </p>
+    <p class="hint">
+      A price marked <strong>× 10</strong> is the stock the product starts with. Once it is
+      created, change its stock in Shopify — editing the sheet afterwards changes nothing.
+    </p>
   </div>
 
   <div id="status"></div>
@@ -308,6 +312,19 @@
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   }
 
+  /**
+   * "8 500 Ft × 28" — the same as `formatPriceWithStock` in the code the CLI
+   * uses. A single piece shows the price alone, so the rows that differ stand out.
+   * Only on a row still to be created: once it exists, Shopify's count is the
+   * truth, and a "× 28" there would read as if it were.
+   */
+  function priceWithStock(result) {
+    if (result.status !== 'would-create' || result.priceHuf === undefined) return '';
+    const price = `${result.priceHuf.toLocaleString('hu-HU')} Ft`;
+    const stock = result.stock ?? 1;
+    return stock === 1 ? price : `${price} × ${stock}`;
+  }
+
   function renderRow(result, pick) {
     const tag = TAG[result.status] ?? { text: result.status, cls: '' };
     const bad = result.status === 'failed' || result.status === 'invalid';
@@ -321,6 +338,7 @@
            aria-label="Create ${esc(result.sku)}">`
       : '';
     const el = pick ? 'label' : 'div';
+    const price = priceWithStock(result);
 
     return `
       <${el} class="row${pick ? ' pick' : ''}${pick && pick.disabled ? ' off' : ''}">
@@ -329,6 +347,7 @@
         <span class="sku">${esc(result.sku)}</span>
         <div class="body">
           ${result.title ? `<div class="title">${esc(result.title)}</div>` : ''}
+          ${price ? `<div class="detail">${esc(price)}</div>` : ''}
           ${result.detail ? `<div class="detail ${bad ? 'bad' : ''}">${esc(result.detail)}</div>` : ''}
           ${(result.warnings ?? []).map((w) => `<div class="detail">! ${esc(w)}</div>`).join('')}
           ${photos ? `<div class="detail">${esc(photos)}</div>` : ''}

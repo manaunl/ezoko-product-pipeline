@@ -172,6 +172,17 @@ describe('the picture since the last preview', () => {
     ]);
   });
 
+  it('keeps the price and starting stock of a row not yet created, so its "× N" still shows', () => {
+    const tumble = { rowNumber: 6, sku: 'TU-301', status: 'would-create' as const, priceHuf: 1200, stock: 28 };
+    const commit = [
+      { rowNumber: 3, sku: 'SP-190-B', status: 'created' as const },
+      { rowNumber: 6, sku: 'TU-301', status: 'skipped' as const, detail: 'not selected' },
+    ];
+
+    const shown = pictureSincePreview([...preview, tumble], [commit]).find((r) => r.sku === 'TU-301');
+    expect(shown).toEqual(tumble);
+  });
+
   it('shows a row a commit found needs fixing now, even though it was not selected', () => {
     const commit = [
       { rowNumber: 2, sku: 'SP-190-A', status: 'invalid' as const, detail: 'price "?5" is not a number' },
